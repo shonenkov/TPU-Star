@@ -21,7 +21,9 @@ class TorchTPUExperiment:
             scheduler,
             criterion,
             device,
-            xla,
+            xm,
+            pl,
+            xser,
             rank,
             best_saving=True,
             last_saving=True,
@@ -51,9 +53,9 @@ class TorchTPUExperiment:
         self.notebook_name = notebook_name
         # #
         # #
-        self.xm = xla.core.xla_model
-        self.pl = xla.distributed.parallel_loader
-        self.xser = xla.utils.serialization
+        self.xm = xm
+        self.pl = pl
+        self.xser = xser,
         self.verbose_step = verbose_step
         self.rank = rank
         # #
