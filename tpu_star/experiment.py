@@ -69,7 +69,7 @@ class TorchTPUExperiment:
         # #
         self.epoch = -1
         self.is_train = None
-        self.metrics_grabber = MetricsGrabber()
+        self.metrics = MetricsGrabber()
         self.train_metrics = {}
         self.valid_metrics = {}
         self.seed_everything(self.seed)
@@ -125,7 +125,7 @@ class TorchTPUExperiment:
             if step and step % self.verbose_step == 0:
                 self._print(
                     f'Train step {step}/{len(train_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics_grabber.train_metrics[self.epoch].avg
+                    **self.metrics.train_metrics[self.epoch].avg
                 )
 
     def validation(self, valid_loader):
@@ -137,7 +137,7 @@ class TorchTPUExperiment:
             if step and step % self.verbose_step == 0:
                 self._print(
                     f'Valid step {step}/{len(valid_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics_grabber.train_metrics[self.epoch].avg
+                    **self.metrics.train_metrics[self.epoch].avg
                 )
 
     def fit(self, train_loader, valid_loader, n_epochs):
@@ -163,7 +163,7 @@ class TorchTPUExperiment:
             stage = 'train'
             self.train_metrics[self.epoch] = self.__mesh_reduce_metrics(
                 stage,
-                **self.metrics_grabber.train_metrics[self.epoch].avg
+                **self.metrics.train_metrics[self.epoch].avg
             )
             self._log(f'Train epoch {self.epoch}, time: {(time.time() - t):.1f}s', **self.train_metrics[self.epoch])
             self._log_neptune('train', **self.train_metrics[self.epoch])
@@ -181,7 +181,7 @@ class TorchTPUExperiment:
             stage = 'valid'
             self.valid_metrics[self.epoch] = self.__mesh_reduce_metrics(
                 stage,
-                **self.metrics_grabber.valid_metrics[self.epoch].avg
+                **self.metrics.valid_metrics[self.epoch].avg
             )
             self._log(f'Valid epoch {self.epoch}, time: {(time.time() - t):.1f}s', **self.valid_metrics[self.epoch])
             self._log_neptune(stage, **self.valid_metrics[self.epoch])
@@ -195,7 +195,7 @@ class TorchTPUExperiment:
                     self.save(f'{self.experiment_dir}/last.pt')
                 last_saved_path = None
                 for key, mode in self.best_saving.items():
-                    if e == self.metrics_grabber.get_best_epoch(key, mode)['epoch']:
+                    if e == self.metrics.get_best_epoch(key, mode)['epoch']:
                         if self.last_saving:
                             os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
                         elif last_saved_path:
@@ -258,17 +258,17 @@ class TorchTPUExperiment:
 
     def __update_epoch(self):
         self.epoch += 1
-        self.metrics_grabber.update_epoch()
+        self.metrics.update_epoch()
 
     def __train(self):
         self.model.train()
         self.is_train = True
-        self.metrics_grabber.is_train = True
+        self.metrics.is_train = True
 
     def __eval(self):
         self.model.eval()
         self.is_train = False
-        self.metrics_grabber.is_train = False
+        self.metrics.is_train = False
 
     @staticmethod
     def __reduce_fn(vals):
