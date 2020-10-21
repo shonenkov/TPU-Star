@@ -31,9 +31,8 @@ class MNISTDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        label = row['label']
+        target = row['label']
         image = row.values[1:].reshape((28, 28, 1))
-        target = self.onehot(10, label)
 
         image = image.astype(np.float32)
         image /= 255.0
@@ -44,15 +43,9 @@ class MNISTDataset(Dataset):
 
         return {
             'id': row.name,
-            'target': target,
+            'target': torch.tensor(target, dtype=torch.int32),
             'image': image,
         }
 
     def get_labels(self):
         return list(self.df['label'].values)
-
-    @staticmethod
-    def onehot(size, target):
-        vec = torch.zeros(size, dtype=torch.float32)
-        vec[target] = 1.
-        return vec

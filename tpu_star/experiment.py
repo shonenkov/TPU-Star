@@ -42,11 +42,11 @@ class TorchTPUExperiment:
         self.verbose_step = verbose_step
         self.seed = seed
         self.base_dir = base_dir
-        if not os.path.exists(self.base_dir):
+        if not os.path.exists(self.base_dir) and rank == 0:
             os.makedirs(self.base_dir)
         self.experiment_name = experiment_name or f'debug-{round(datetime.utcnow().timestamp())}'
         self.experiment_dir = f'{self.base_dir}/{self.experiment_name}'
-        if not os.path.exists(self.experiment_dir):
+        if not os.path.exists(self.experiment_dir) and rank == 0:
             os.makedirs(self.experiment_dir)
         self.log_path = f'{self.experiment_dir}/log.txt'
         self.jupyters_path = jupyters_path
