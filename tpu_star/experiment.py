@@ -14,27 +14,25 @@ from .metrics import MetricsGrabber
 class TorchTPUExperiment:
 
     def __init__(
-            self,
-            model,
-            optimizer,
-            scheduler,
-            criterion,
-            device,
-            xm,
-            pl,
-            xser,
-            rank,
-            best_saving=True,
-            last_saving=True,
-            verbose=True,
-            verbose_step=100,
-            seed=42,
-            jupyters_path='./',
-            base_dir='./saved_models',
-            notebook_name=None,
-            experiment_name=None,
-            neptune=None,
-            neptune_params=None,
+        self,
+        model,
+        optimizer,
+        scheduler,
+        criterion,
+        device,
+        xm,
+        pl,
+        xser,
+        rank,
+        best_saving=True,
+        last_saving=True,
+        verbose=True,
+        verbose_step=100,
+        seed=42,
+        jupyters_path='./',
+        base_dir='./saved_models',
+        notebook_name=None,
+        experiment_name=None,
     ):
         # #
         self.verbose = verbose
@@ -74,11 +72,6 @@ class TorchTPUExperiment:
         self.train_metrics = {}
         self.valid_metrics = {}
         self.seed_everything(self.seed)
-        # #
-        # #
-        self.neptune_params = neptune_params or {}
-        self._init_neptune(neptune)
-
         # #
         # #
         self.last_saving = last_saving
@@ -152,8 +145,6 @@ class TorchTPUExperiment:
             # #
             lr = self.optimizer.param_groups[0]['lr']
             self._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
-            self._log_neptune(lr=lr)
-            self._log_neptune(epoch=self.epoch)
             # #
             # #
             t = time.time()
@@ -168,7 +159,6 @@ class TorchTPUExperiment:
                 **self.metrics.train_metrics[self.epoch].avg
             )
             self._log(f'Train epoch {self.epoch}, time: {(time.time() - t):.1f}s', **self.train_metrics[self.epoch])
-            self._log_neptune('train', **self.train_metrics[self.epoch])
             # #
             # #
             self.custom_action_after_train_one_epoch()
@@ -186,7 +176,6 @@ class TorchTPUExperiment:
                 **self.metrics.valid_metrics[self.epoch].avg
             )
             self._log(f'Valid epoch {self.epoch}, time: {(time.time() - t):.1f}s', **self.valid_metrics[self.epoch])
-            self._log_neptune(stage, **self.valid_metrics[self.epoch])
             # #
             # #
             self.custom_action_after_valid_one_epoch()
@@ -219,23 +208,6 @@ class TorchTPUExperiment:
         torch.backends.cudnn.deterministic = True
         torch.backends.cudnn.benchmark = True
         self.xm.set_rng_state(seed)
-
-    def _init_neptune(self, neptune):
-        if neptune and self.rank == 0:
-            self.neptune = neptune.create_experiment(
-                name=self.experiment_name,
-                **self.neptune_params
-            )
-            if self.notebook_name:
-                self.neptune.log_artifact(f'{self.jupyters_path}/{self.notebook_name}')
-        else:
-            self.neptune = None
-
-    def _log_neptune(self, stage=None, **kwargs):
-        if self.neptune:
-            prefix = f'_{stage}' if stage else ''
-            for key, arg in kwargs.items():
-                self.neptune.log_metric(f'{key}{prefix}', arg)
 
     def _print(self, msg, *args, **kwargs):
         if self.verbose:
