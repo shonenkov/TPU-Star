@@ -139,7 +139,7 @@ class TorchTPUExperiment:
             if step and step % self.verbose_step == 0:
                 self._print(
                     f'Valid step {step}/{len(valid_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics.train_metrics[self.epoch].avg
+                    **self.metrics.valid_metrics[self.epoch].avg
                 )
 
     def fit(self, train_loader, valid_loader, n_epochs):
@@ -192,19 +192,18 @@ class TorchTPUExperiment:
             self.custom_action_after_valid_one_epoch()
             # #
             # #
-            if self.rank == 0:
-                if self.last_saving:
-                    self.save(f'{self.experiment_dir}/last.pt')
-                last_saved_path = None
-                for key, mode in self.best_saving.items():
-                    if e == self.metrics.get_best_epoch(key, mode)['epoch']:
-                        if self.last_saving:
-                            os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
-                        elif last_saved_path:
-                            os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
-                        else:
-                            last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
-                            self.save(last_saved_path)
+            if self.last_saving:
+                self.save(f'{self.experiment_dir}/last.pt')
+            last_saved_path = None
+            for key, mode in self.best_saving.items():
+                if e == self.metrics.get_best_epoch(key, mode)['epoch']:
+                    if self.last_saving:
+                        os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
+                    elif last_saved_path:
+                        os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
+                    else:
+                        last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
+                        self.save(last_saved_path)
             # #
 
     def save(self, path):
