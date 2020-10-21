@@ -236,7 +236,7 @@ class TorchTPUExperiment:
 
     def _print(self, msg, *args, **kwargs):
         if self.verbose:
-            msg = self.__prepare_msg(msg,  *args, **kwargs)
+            msg = self.__prepare_msg(msg, *args, **kwargs)
             self.xm.master_print(msg)
 
     def _log(self, msg, *args, **kwargs):
@@ -278,6 +278,6 @@ class TorchTPUExperiment:
         mesh_metrics = {}
         prefix = f'_{stage}' if stage else ''
         for metric, value in kwargs.items():
-            mesh_value = self.xm.mesh_reduce(f'{metric}{prefix}_reduce', value, self.__mesh_reduce_metrics)
+            mesh_value = self.xm.mesh_reduce(f'{metric}{prefix}_reduce', value, self.__reduce_fn)
             mesh_metrics[metric] = mesh_value
         return mesh_metrics
