@@ -222,7 +222,7 @@ class TorchTPUExperiment:
 
     def _init_neptune(self, neptune):
         if neptune and self.rank == 0:
-            self.neptune = self.neptune.create_experiment(
+            self.neptune = neptune.create_experiment(
                 name=self.experiment_name,
                 **self.neptune_params
             )
