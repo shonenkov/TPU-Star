@@ -51,6 +51,8 @@ class TorchTPUExperiment:
         self.log_path = f'{self.experiment_dir}/log.txt'
         self.jupyters_path = jupyters_path
         self.notebook_name = notebook_name
+        if self.notebook_name and rank == 0:
+            os.system(f'cp "{self.jupyters_path}/{self.notebook_name}" "{self.experiment_dir}/{self.notebook_name}"')
         # #
         # #
         self.xm = xm
