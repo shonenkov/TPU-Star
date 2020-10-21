@@ -32,10 +32,8 @@ class MNISTDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         target = row['label']
-        image = row.values[1:].reshape((28, 28, 1))
+        image = row.values[1:].reshape((28, 28, 1)).astype(np.uint8)
 
-        image = image.astype(np.float32)
-        image /= 255.0
         if self.transforms:
             sample = {'image': image}
             sample = self.transforms(**sample)
