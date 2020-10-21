@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-import time
 import os
-import random
-import numpy as np
 import gc
+import time
+import random
 from datetime import datetime
 
 import torch
-
+import numpy as np
 
 from .metrics import MetricsGrabber
 
@@ -77,8 +76,9 @@ class TorchTPUExperiment:
         self.seed_everything(self.seed)
         # #
         # #
-        self.neptune = neptune
         self.neptune_params = neptune_params or {}
+        self._init_neptune(neptune)
+
         # #
         # #
         self.last_saving = last_saving
@@ -220,14 +220,16 @@ class TorchTPUExperiment:
         torch.backends.cudnn.benchmark = True
         self.xm.set_rng_state(seed)
 
-    def _init_neptune(self):
-        if self.neptune and self.rank == 0:
+    def _init_neptune(self, neptune):
+        if neptune and self.rank == 0:
             self.neptune = self.neptune.create_experiment(
                 name=self.experiment_name,
                 **self.neptune_params
             )
             if self.notebook_name:
                 self.neptune.log_artifact(f'{self.jupyters_path}/{self.notebook_name}')
+        else:
+            self.neptune = None
 
     def _log_neptune(self, stage=None, **kwargs):
         if self.neptune:
