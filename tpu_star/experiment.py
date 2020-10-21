@@ -29,9 +29,7 @@ class TorchTPUExperiment:
         verbose=True,
         verbose_step=100,
         seed=42,
-        jupyters_path='./',
         base_dir='./saved_models',
-        notebook_name=None,
         experiment_name=None,
     ):
         # #
@@ -46,10 +44,6 @@ class TorchTPUExperiment:
         if not os.path.exists(self.experiment_dir) and rank == 0:
             os.makedirs(self.experiment_dir)
         self.log_path = f'{self.experiment_dir}/log.txt'
-        self.jupyters_path = jupyters_path
-        self.notebook_name = notebook_name
-        if self.notebook_name and rank == 0:
-            os.system(f'cp "{self.jupyters_path}/{self.notebook_name}" "{self.experiment_dir}/{self.notebook_name}"')
         # #
         # #
         self.xm = xm
