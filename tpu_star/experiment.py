@@ -199,11 +199,12 @@ class TorchTPUExperiment:
         self.model.eval()
         self.xm.save(self.model.state_dict(), path)
         if self.rank == 0:
+            metrics_path = os.path.join(os.path.dirname(path), 'metrics.pt')
             torch.save({
                 'train_metrics': self.train_metrics,
                 'valid_metrics': self.valid_metrics,
                 'master_metrics_grabber': self.metrics.state_dict(),
-            }, "metrics.pt")
+            }, metrics_path)
 
     def seed_everything(self, seed):
         random.seed(seed)
