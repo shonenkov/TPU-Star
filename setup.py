@@ -51,4 +51,5 @@ setup(
     install_requires=get_requirements(),
     dependency_links=get_links(),
     long_description=read('README.md'),
+    long_description_content_type='text/markdown',
 )
