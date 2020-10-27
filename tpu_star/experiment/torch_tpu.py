@@ -1,18 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
-import gc
-import time
 import random
-from datetime import datetime
 
 import torch
 import numpy as np
 
-from .metrics import MetricsGrabber
-from .base import BaseExperiment
+from .torch_gpu import TorchGPUExperiment
 
 
-class TorchTPUExperiment(BaseExperiment):
+class TorchTPUExperiment(TorchGPUExperiment):
 
     def __init__(
         self,
@@ -27,7 +23,7 @@ class TorchTPUExperiment(BaseExperiment):
         rank,
         seed=42,
         verbose=True,
-        verbose_step=100,
+        verbose_step=1,
         base_dir='./saved_models',
         jupyters_path=None,
         notebook_name=None,
@@ -41,42 +37,26 @@ class TorchTPUExperiment(BaseExperiment):
         self.xm = xm
         self.pl = pl
         self.xser = xser,
-        self.verbose_step = verbose_step
         super().__init__(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            criterion=criterion,
+            device=device,
             rank=rank,
             seed=seed,
             verbose=verbose,
+            verbose_end='\n',
+            verbose_step=verbose_step,
             base_dir=base_dir,
             jupyters_path=jupyters_path,
             notebook_name=notebook_name,
             experiment_name=experiment_name,
             neptune=neptune,
             neptune_params=neptune_params,
+            best_saving=best_saving,
+            last_saving=last_saving,
         )
-        # #
-        # #
-        self.model = model
-        self.optimizer = optimizer
-        self.scheduler = scheduler
-        self.criterion = criterion
-        self.device = device
-        # #
-        # #
-        self.epoch = -1
-        self.is_train = None
-        self.metrics = MetricsGrabber()
-        self.train_metrics = {}
-        self.valid_metrics = {}
-        # #
-        # #
-        self.last_saving = last_saving
-        if best_saving is False or best_saving is None:
-            self.best_saving = {}
-        elif best_saving is True:
-            self.best_saving = {'loss': 'min'}
-        else:
-            self.best_saving = best_saving
-        # #
 
     def handle_one_batch(self, batch, *args, **kwargs):
         """
@@ -98,97 +78,17 @@ class TorchTPUExperiment(BaseExperiment):
         """
         raise NotImplementedError
 
-    def custom_action_before_train_one_epoch(self):
-        pass
+    def _rebuild_loader(self, loader):
+        para_loader = self.pl.ParallelLoader(loader, [self.device])
+        return para_loader.per_device_loader(self.device)
 
-    def custom_action_after_train_one_epoch(self):
-        pass
-
-    def custom_action_after_valid_one_epoch(self):
-        pass
-
-    def train_one_epoch(self, train_loader):
-        t = time.time()
-        self.__train()
-        for step, batch in enumerate(train_loader):
-            self.handle_one_batch(batch)
-            if step and step % self.verbose_step == 0:
-                self._print(
-                    f'Train step {step}/{len(train_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics.train_metrics[self.epoch].avg
-                )
-
-    def validation(self, valid_loader):
-        t = time.time()
-        self.__eval()
-        for step, batch in enumerate(valid_loader):
-            with torch.no_grad():
-                self.handle_one_batch(batch)
-            if step and step % self.verbose_step == 0:
-                self._print(
-                    f'Valid step {step}/{len(valid_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics.valid_metrics[self.epoch].avg
-                )
-
-    def fit(self, train_loader, valid_loader, n_epochs):
-        for e in range(n_epochs):
-            self.__update_epoch()
-            # #
-            # #
-            self.custom_action_before_train_one_epoch()
-            # #
-            # #
-            lr = self.optimizer.param_groups[0]['lr']
-            self._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
-            # #
-            # #
-            t = time.time()
-            para_loader = self.pl.ParallelLoader(train_loader, [self.device])
-            self.train_one_epoch(para_loader.per_device_loader(self.device))
-            del para_loader
-            gc.collect()
-            # #
-            stage = 'train'
-            self.train_metrics[self.epoch] = self.__mesh_reduce_metrics(
-                stage,
-                **self.metrics.train_metrics[self.epoch].avg
-            )
-            self._log(f'Train epoch {self.epoch}, time: {(time.time() - t):.1f}s', **self.train_metrics[self.epoch])
-            # #
-            # #
-            self.custom_action_after_train_one_epoch()
-            # #
-            # #
-            t = time.time()
-            para_loader = self.pl.ParallelLoader(valid_loader, [self.device])
-            self.validation(para_loader.per_device_loader(self.device))
-            del para_loader
-            gc.collect()
-            # #
-            stage = 'valid'
-            self.valid_metrics[self.epoch] = self.__mesh_reduce_metrics(
-                stage,
-                **self.metrics.valid_metrics[self.epoch].avg
-            )
-            self._log(f'Valid epoch {self.epoch}, time: {(time.time() - t):.1f}s', **self.valid_metrics[self.epoch])
-            # #
-            # #
-            self.custom_action_after_valid_one_epoch()
-            # #
-            # #
-            if self.last_saving:
-                self.save(f'{self.experiment_dir}/last.pt')
-            last_saved_path = None
-            for key, mode in self.best_saving.items():
-                if e == self.metrics.get_best_epoch(key, mode)['epoch']:
-                    if self.last_saving:
-                        os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
-                    elif last_saved_path:
-                        os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
-                    else:
-                        last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
-                        self.save(last_saved_path)
-            # #
+    def _get_current_metrics(self, stage):
+        if stage == 'train':
+            return self.__mesh_reduce_metrics(stage, **self.metrics.train_metrics[self.epoch].avg)
+        elif stage == 'valid':
+            return self.__mesh_reduce_metrics(stage, **self.metrics.valid_metrics[self.epoch].avg)
+        else:
+            raise ValueError(f'Incorrect stage: "{stage}".')
 
     def save(self, path):
         self.model.eval()
@@ -196,10 +96,15 @@ class TorchTPUExperiment(BaseExperiment):
         if self.rank == 0:
             metrics_path = os.path.join(os.path.dirname(path), 'metrics.pt')
             torch.save({
-                'train_metrics': self.train_metrics,
-                'valid_metrics': self.valid_metrics,
-                'master_metrics_grabber': self.metrics.state_dict(),
+                'metrics_state_dict': self.metrics.state_dict(),
             }, metrics_path)
+
+    def load(self, path):
+        raise ValueError
+
+    def destroy(self):
+        if self.rank == 0 and self.neptune:
+            self.neptune.stop()
 
     def _seed_everything(self, seed):
         random.seed(seed)
@@ -223,20 +128,6 @@ class TorchTPUExperiment(BaseExperiment):
         if self.rank == 0:
             with open(self.log_path, 'a+') as logger:
                 self.xm.master_print(f'{msg}', fd=logger)
-
-    def __update_epoch(self):
-        self.epoch += 1
-        self.metrics.update_epoch()
-
-    def __train(self):
-        self.model.train()
-        self.is_train = True
-        self.metrics.is_train = True
-
-    def __eval(self):
-        self.model.eval()
-        self.is_train = False
-        self.metrics.is_train = False
 
     @staticmethod
     def __reduce_fn(vals):

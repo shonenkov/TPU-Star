@@ -14,6 +14,7 @@ class BaseExperiment:
         rank=0,
         seed=42,
         verbose=True,
+        verbose_end='\n',
         base_dir='./saved_models',
         jupyters_path=None,
         notebook_name=None,
@@ -25,6 +26,7 @@ class BaseExperiment:
         self.rank = rank
         self.seed = seed
         self.verbose = verbose
+        self.verbose_end = verbose_end
         # #
         # #
         self.base_dir = base_dir
@@ -88,7 +90,7 @@ class BaseExperiment:
     def _print(self, msg, *args, **kwargs):
         if self.verbose:
             msg = self._prepare_msg(msg, *args, **kwargs)
-            print(msg, end='\r')
+            print(msg, end=self.verbose_end)
 
     @staticmethod
     def _prepare_msg(msg, *args, **kwargs):
