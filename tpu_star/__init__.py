@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-from . import datasets, experiment, metrics
+from . import datasets, experiment, colab_utils, utils
 
 
-__version__ = '0.0.1-rc3'
+__version__ = '0.0.1-rc4'
 
-__all__ = ['datasets', 'experiment', 'metrics']
+__all__ = ['datasets', 'experiment', 'colab_utils', 'utils']

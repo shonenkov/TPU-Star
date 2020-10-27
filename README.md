@@ -1,5 +1,5 @@
 # TPU-Star 
-PyTorch XLA Toolkit for super fast prototyping on TPU (8 cores)
+PyTorch XLA Toolkit for quickly and easy prototyping on TPU (8 cores)
 
 [![PyTorch XLA](https://img.shields.io/badge/TPU-PyTorch/XLA-darkgreen.svg)](https://github.com/pytorch/xla)
 [![Build Status](https://api.travis-ci.com/shonenkov/TPU-Star.svg)](https://travis-ci.com/shonenkov/TPU-Star)
@@ -10,7 +10,7 @@ PyTorch XLA Toolkit for super fast prototyping on TPU (8 cores)
 ### Installing
 1. Using pip: 
 ```
-pip install tpu-star==0.0.1-rc3
+pip install tpu-star==0.0.1-rc4
 ```
 
 ### Examples

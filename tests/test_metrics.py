@@ -3,7 +3,7 @@ from random import random
 
 import torch
 
-from tpu_star.metrics import MetricsGrabber, MetricsMeter
+from tpu_star.experiment.metrics import MetricsGrabber, MetricsMeter
 
 
 def test_metrics_grabber_save_and_load_state_dict():

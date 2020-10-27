@@ -10,7 +10,8 @@ def TPULoaderWrapper(
     shuffle=False,
     collate_fn=None,
     pin_memory=False,
-    drop_last=False
+    drop_last=False,
+    num_workers=0,
 ):
     sampler = torch.utils.data.distributed.DistributedSampler(
         dataset,
@@ -24,7 +25,7 @@ def TPULoaderWrapper(
         sampler=sampler,
         pin_memory=pin_memory,
         drop_last=drop_last,
-        num_workers=0,
+        num_workers=num_workers,
         collate_fn=collate_fn,
     )
     return loader
