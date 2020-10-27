@@ -232,6 +232,9 @@ class TorchGPUExperiment(BaseExperiment):
         if self.rank == 0 and self.neptune:
             self.neptune.stop()
 
+    def optimizer_step(self):
+        self.optimizer.step()
+
     def _rebuild_loader(self, loader):
         return loader
 
