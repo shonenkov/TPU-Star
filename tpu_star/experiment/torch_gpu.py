@@ -85,7 +85,7 @@ class TorchGPUExperiment(BaseExperiment):
 
         if self.is_train:
             loss.backward()
-            self.optimizer.step()
+            self.optimizer_step()
             self.optimizer.zero_grad()
             self.scheduler.step()
         """
