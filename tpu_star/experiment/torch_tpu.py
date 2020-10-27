@@ -9,9 +9,10 @@ import torch
 import numpy as np
 
 from .metrics import MetricsGrabber
+from .base import BaseExperiment
 
 
-class TorchTPUExperiment:
+class TorchTPUExperiment(BaseExperiment):
 
     def __init__(
         self,
@@ -24,33 +25,34 @@ class TorchTPUExperiment:
         pl,
         xser,
         rank,
-        best_saving=True,
-        last_saving=True,
+        seed=42,
         verbose=True,
         verbose_step=100,
-        seed=42,
         base_dir='./saved_models',
+        jupyters_path=None,
+        notebook_name=None,
         experiment_name=None,
+        neptune=None,
+        neptune_params=None,
+        best_saving=True,
+        last_saving=True,
     ):
-        # #
-        self.verbose = verbose
-        self.verbose_step = verbose_step
-        self.seed = seed
-        self.base_dir = base_dir
-        if not os.path.exists(self.base_dir) and rank == 0:
-            os.makedirs(self.base_dir)
-        self.experiment_name = experiment_name or f'debug-{round(datetime.utcnow().timestamp())}'
-        self.experiment_dir = f'{self.base_dir}/{self.experiment_name}'
-        if not os.path.exists(self.experiment_dir) and rank == 0:
-            os.makedirs(self.experiment_dir)
-        self.log_path = f'{self.experiment_dir}/log.txt'
-        # #
         # #
         self.xm = xm
         self.pl = pl
         self.xser = xser,
         self.verbose_step = verbose_step
-        self.rank = rank
+        super().__init__(
+            rank=rank,
+            seed=seed,
+            verbose=verbose,
+            base_dir=base_dir,
+            jupyters_path=jupyters_path,
+            notebook_name=notebook_name,
+            experiment_name=experiment_name,
+            neptune=neptune,
+            neptune_params=neptune_params,
+        )
         # #
         # #
         self.model = model
@@ -65,7 +67,6 @@ class TorchTPUExperiment:
         self.metrics = MetricsGrabber()
         self.train_metrics = {}
         self.valid_metrics = {}
-        self.seed_everything(self.seed)
         # #
         # #
         self.last_saving = last_saving
@@ -200,7 +201,7 @@ class TorchTPUExperiment:
                 'master_metrics_grabber': self.metrics.state_dict(),
             }, metrics_path)
 
-    def seed_everything(self, seed):
+    def _seed_everything(self, seed):
         random.seed(seed)
         os.environ['PYTHONHASHSEED'] = str(seed)
         np.random.seed(seed)
@@ -222,15 +223,6 @@ class TorchTPUExperiment:
         if self.rank == 0:
             with open(self.log_path, 'a+') as logger:
                 self.xm.master_print(f'{msg}', fd=logger)
-
-    @staticmethod
-    def __prepare_msg(msg, *args, **kwargs):
-        msg = str(msg)
-        for i, arg in enumerate(args):
-            msg = f'{msg}, arg_{i}: {arg:.5f}'
-        for key, arg in kwargs.items():
-            msg = f'{msg}, {key}={arg:.5f}'
-        return msg
 
     def __update_epoch(self):
         self.epoch += 1
