@@ -33,7 +33,7 @@ class BaseExperiment:
         # #
         # #
         self.experiment_name = experiment_name or 'debug'
-        self.experiment_name = experiment_name + '-' + len(glob(f'{self.base_dir}/{self.experiment_name}*'))
+        self.experiment_name = experiment_name + '-' + str(len(glob(f'{self.base_dir}/{self.experiment_name}*')))
         self.experiment_dir = f'{self.base_dir}/{self.experiment_name}'
         if not os.path.exists(self.experiment_dir) and self.rank == 0:
             os.makedirs(self.experiment_dir)
