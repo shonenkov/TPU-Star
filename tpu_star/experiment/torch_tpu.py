@@ -213,11 +213,11 @@ class TorchTPUExperiment(BaseExperiment):
 
     def _print(self, msg, *args, **kwargs):
         if self.verbose:
-            msg = self.__prepare_msg(msg, *args, **kwargs)
+            msg = self._prepare_msg(msg, *args, **kwargs)
             self.xm.master_print(msg)
 
     def _log(self, msg, *args, **kwargs):
-        msg = self.__prepare_msg(msg, *args, **kwargs)
+        msg = self._prepare_msg(msg, *args, **kwargs)
         if self.verbose:
             self._print(msg)
         if self.rank == 0:

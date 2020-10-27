@@ -79,7 +79,7 @@ class BaseExperiment:
                 self.neptune.log_metric(f'{key}{prefix}', arg)
 
     def _log(self, msg, *args, **kwargs):
-        msg = self.__prepare_msg(msg, *args, **kwargs)
+        msg = self._prepare_msg(msg, *args, **kwargs)
         with open(self.log_path, 'a+') as logger:
             logger.write(f'{msg}\n')
         if self.verbose:
@@ -87,11 +87,11 @@ class BaseExperiment:
 
     def _print(self, msg, *args, **kwargs):
         if self.verbose:
-            msg = self.__prepare_msg(msg, *args, **kwargs)
+            msg = self._prepare_msg(msg, *args, **kwargs)
             print(msg, end='\r')
 
     @staticmethod
-    def __prepare_msg(msg, *args, **kwargs):
+    def _prepare_msg(msg, *args, **kwargs):
         msg = str(msg)
         for i, arg in enumerate(args):
             msg = f'{msg}, arg_{i}: {arg:.5f}'
