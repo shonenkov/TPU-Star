@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import random
+import time
 
 import torch
 import numpy as np
@@ -34,6 +35,8 @@ class TorchTPUExperiment(TorchGPUExperiment):
         best_saving=True,
         last_saving=True,
     ):
+        if rank == 0:
+            time.sleep(1)
         # #
         self.xm = xm
         self.pl = pl
