@@ -15,6 +15,7 @@ class BaseExperiment:
         seed=42,
         verbose=True,
         verbose_end='\n',
+        verbose_ndigits=5,
         base_dir='./saved_models',
         jupyters_path=None,
         notebook_name=None,
@@ -27,6 +28,7 @@ class BaseExperiment:
         self.seed = seed
         self.verbose = verbose
         self.verbose_end = verbose_end
+        self.verbose_ndigits = verbose_ndigits
         # #
         # #
         self.base_dir = base_dir
@@ -92,11 +94,10 @@ class BaseExperiment:
             msg = self._prepare_msg(msg, *args, **kwargs)
             print(msg, end=self.verbose_end)
 
-    @staticmethod
-    def _prepare_msg(msg, *args, **kwargs):
+    def _prepare_msg(self, msg, *args, **kwargs):
         msg = str(msg)
         for i, arg in enumerate(args):
-            msg = f'{msg}, arg_{i}: {arg:.5f}'
+            msg = f'{msg}, arg_{i}: {arg:.{self.verbose_ndigits}f}'
         for key, arg in kwargs.items():
-            msg = f'{msg}, {key}={arg:.5f}'
+            msg = f'{msg}, {key}={arg:.{self.verbose_ndigits}f}'
         return msg

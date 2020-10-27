@@ -23,6 +23,7 @@ class TorchGPUExperiment(BaseExperiment):
         seed=42,
         verbose=True,
         verbose_end='\n',
+        verbose_ndigits=5,
         verbose_step=1,
         base_dir='./saved_models',
         jupyters_path=None,
@@ -39,6 +40,7 @@ class TorchGPUExperiment(BaseExperiment):
             seed=seed,
             verbose=verbose,
             verbose_end=verbose_end,
+            verbose_ndigits=verbose_ndigits,
             base_dir=base_dir,
             jupyters_path=jupyters_path,
             notebook_name=notebook_name,
@@ -131,6 +133,8 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             lr = self.optimizer.param_groups[0]['lr']
             self._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
+            self._log_neptune(lr=lr)
+            self._log_neptune(epoch=self.epoch)
             # #
             # #
             t = time.time()
