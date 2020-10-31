@@ -5,6 +5,7 @@ import time
 from datetime import datetime
 
 import torch
+from tqdm.auto import tqdm
 
 from .base import BaseExperiment
 from .metrics import MetricsGrabber
@@ -71,6 +72,9 @@ class TorchGPUExperiment(BaseExperiment):
             self.best_saving = best_saving
         # #
 
+        self.train_progress_bar = None
+        self.epoch_progress_bar = None
+
     def handle_one_batch(self, batch, *args, **kwargs):
         """
         you can use this structure, for example:
@@ -110,6 +114,8 @@ class TorchGPUExperiment(BaseExperiment):
                     f'Train step {step}/{len(train_loader)}, time: {(time.time() - t):.1f}s',
                     **self.metrics.train_metrics[self.epoch].avg
                 )
+            if self.rank == 0:
+                self.epoch_progress_bar.update(1)
 
     def validation(self, valid_loader):
         t = time.time()
@@ -124,6 +130,11 @@ class TorchGPUExperiment(BaseExperiment):
                 )
 
     def fit(self, train_loader, valid_loader, n_epochs):
+        # #
+        if self.rank == 0:
+            self.train_progress_bar = tqdm(total=n_epochs)
+            self.epoch_progress_bar = tqdm(total=len(train_loader), leave=False)
+        # #
         for e in range(n_epochs):
             self._update_epoch()
             # #
@@ -173,6 +184,11 @@ class TorchGPUExperiment(BaseExperiment):
                     else:
                         last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
                         self.save(last_saved_path)
+            # #
+            # #
+            if self.rank == 0:
+                self.train_progress_bar.update(1)
+                self.epoch_progress_bar.update(-len(train_loader))
             # #
 
     def save(self, path):
