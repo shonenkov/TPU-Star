@@ -202,7 +202,19 @@ class TorchGPUExperiment(BaseExperiment):
             # #
 
     @classmethod
-    def resume(cls, model, optimizer, scheduler, criterion, device, checkpoint_path, neptune=None):
+    def resume(
+        cls,
+        model,
+        optimizer,
+        scheduler,
+        criterion,
+        device,
+        checkpoint_path,
+        train_loader,
+        valid_loader,
+        n_epochs,
+        neptune=None
+    ):
         checkpoint = torch.load(checkpoint_path)
         experiment_state_dict = checkpoint['experiment_state_dict']
         neptune_state_dict = checkpoint['neptune_state_dict']
@@ -232,7 +244,7 @@ class TorchGPUExperiment(BaseExperiment):
             last_saving=experiment_state_dict['last_saving'],
         )
 
-        experiment.epoch = experiment_state_dict['epoch'] + 1
+        experiment.epoch = experiment_state_dict['epoch']
         experiment.model.load_state_dict(checkpoint['model_state_dict'])
         experiment.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         experiment.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
@@ -245,7 +257,7 @@ class TorchGPUExperiment(BaseExperiment):
 
         experiment._init_neptune(neptune)
 
-        for e in range(experiment.epoch):
+        for e in range(experiment.epoch + 1):
             lr = experiment.lr_history[e]
             experiment._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
             experiment._log_neptune(lr=lr)
@@ -260,6 +272,8 @@ class TorchGPUExperiment(BaseExperiment):
             metrics = experiment.metrics.valid_metrics[e].avg
             experiment._log(f'Valid epoch {e}, time: {dtime}s', **metrics)
             experiment._log_neptune('valid', **metrics)
+
+        experiment.fit(train_loader, valid_loader, n_epochs)
 
         return experiment
 
