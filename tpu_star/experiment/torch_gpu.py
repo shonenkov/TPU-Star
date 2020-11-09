@@ -232,7 +232,7 @@ class TorchGPUExperiment(BaseExperiment):
             last_saving=experiment_state_dict['last_saving'],
         )
 
-        experiment.epoch = experiment_state_dict['experiment_state_dict']['epoch']
+        experiment.epoch = experiment_state_dict['epoch']
         experiment.model.load_state_dict(checkpoint['model_state_dict'])
         experiment.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         experiment.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
