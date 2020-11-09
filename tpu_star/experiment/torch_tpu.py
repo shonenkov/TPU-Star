@@ -107,6 +107,10 @@ class TorchTPUExperiment(TorchGPUExperiment):
     def load(self, path):
         raise ValueError
 
+    @classmethod
+    def resume(cls, *args, **kwargs):
+        raise
+
     def destroy(self):
         if self.rank == 0 and self.neptune:
             self.neptune.stop()

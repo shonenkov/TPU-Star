@@ -26,6 +26,7 @@ class TorchGPUExperiment(BaseExperiment):
         verbose_end='\n',
         verbose_ndigits=5,
         verbose_step=1,
+        use_progress_bar=False,
         base_dir='./saved_models',
         jupyters_path=None,
         notebook_name=None,
@@ -71,7 +72,11 @@ class TorchGPUExperiment(BaseExperiment):
         else:
             self.best_saving = best_saving
         # #
-
+        self.lr_history = []
+        self.time_history_train = []
+        self.time_history_valid = []
+        # #
+        self.use_progress_bar = use_progress_bar
         self.train_progress_bar = None
         self.epoch_progress_bar = None
 
@@ -114,7 +119,7 @@ class TorchGPUExperiment(BaseExperiment):
                     f'Train step {step}/{len(train_loader)}, time: {(time.time() - t):.1f}s',
                     **self.metrics.train_metrics[self.epoch].avg
                 )
-            if self.rank == 0:
+            if self.rank == 0 and self.use_progress_bar:
                 self.epoch_progress_bar.update(1)
 
     def validation(self, valid_loader):
@@ -131,7 +136,7 @@ class TorchGPUExperiment(BaseExperiment):
 
     def fit(self, train_loader, valid_loader, n_epochs):
         # #
-        if self.rank == 0:
+        if self.rank == 0 and self.use_progress_bar:
             self.train_progress_bar = tqdm(total=n_epochs)
             self.epoch_progress_bar = tqdm(total=len(train_loader), leave=False)
         # #
@@ -143,6 +148,7 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             # #
             lr = self.optimizer.param_groups[0]['lr']
+            self.lr_history.append(lr)
             self._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
             self._log_neptune(lr=lr)
             self._log_neptune(epoch=self.epoch)
@@ -153,7 +159,9 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             stage = 'train'
             metrics = self._get_current_metrics(stage)
-            self._log(f'Train epoch {self.epoch}, time: {(time.time() - t):.1f}s', **metrics)
+            dtime = time.time() - t
+            self.time_history_train.append(dtime)
+            self._log(f'Train epoch {self.epoch}, time: {dtime:.1f}s', **metrics)
             self._log_neptune(stage, **metrics)
             # #
             # #
@@ -165,7 +173,9 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             stage = 'valid'
             metrics = self._get_current_metrics(stage)
-            self._log(f'Valid epoch {self.epoch}, time: {(time.time() - t):.1f}s', **metrics)
+            dtime = time.time() - t
+            self.time_history_valid.append(dtime)
+            self._log(f'Valid epoch {self.epoch}, time: {dtime:.1f}s', **metrics)
             self._log_neptune(stage, **metrics)
             # #
             # #
@@ -186,33 +196,115 @@ class TorchGPUExperiment(BaseExperiment):
                         self.save(last_saved_path)
             # #
             # #
-            if self.rank == 0:
+            if self.rank == 0 and self.use_progress_bar:
                 self.train_progress_bar.update(1)
                 self.epoch_progress_bar.update(-len(train_loader))
             # #
 
+    @classmethod
+    def resume(cls, model, optimizer, scheduler, criterion, device, checkpoint_path, neptune=None):
+        checkpoint = torch.load(checkpoint_path)
+        experiment_state_dict = checkpoint['experiment_state_dict']
+        neptune_state_dict = checkpoint['neptune_state_dict']
+
+        experiment_name = 'R+' + experiment_state_dict['experiment_name']
+
+        experiment = cls(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            criterion=criterion,
+            device=device,
+            rank=experiment_state_dict['rank'],
+            seed=experiment_state_dict['seed'],
+            verbose=experiment_state_dict['verbose'],
+            verbose_end=experiment_state_dict['verbose_end'],
+            verbose_ndigits=experiment_state_dict['verbose_ndigits'],
+            verbose_step=experiment_state_dict['verbose_step'],
+            use_progress_bar=experiment_state_dict['use_progress_bar'],
+            base_dir=experiment_state_dict['base_dir'],
+            jupyters_path=experiment_state_dict['jupyters_path'],
+            notebook_name=experiment_state_dict['notebook_name'],
+            experiment_name=experiment_name,
+            neptune=None,
+            neptune_params=neptune_state_dict['params'],
+            best_saving=experiment_state_dict['best_saving'],
+            last_saving=experiment_state_dict['last_saving'],
+        )
+
+        experiment.epoch = experiment_state_dict['experiment_state_dict']['epoch']
+        experiment.model.load_state_dict(checkpoint['model_state_dict'])
+        experiment.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        experiment.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        experiment.metrics.load_state_dict(checkpoint['metrics_state_dict'])
+
+        history_state_dict = checkpoint['history_state_dict']
+        experiment.time_history_train = history_state_dict['time_history_train']
+        experiment.time_history_valid = history_state_dict['time_history_valid']
+        experiment.lr_history = history_state_dict['lr_history']
+
+        experiment._init_neptune(neptune)
+
+        for e in range(experiment.epoch):
+            lr = experiment.lr_history[e]
+            experiment._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
+            experiment._log_neptune(lr=lr)
+            experiment._log_neptune(epoch=e)
+
+            dtime = experiment.time_history_train[e]
+            metrics = experiment.metrics.train_metrics[e].avg
+            experiment._log(f'Train epoch {e}, time: {dtime}s', **metrics)
+            experiment._log_neptune('train', **metrics)
+
+            dtime = experiment.time_history_valid[e]
+            metrics = experiment.metrics.valid_metrics[e].avg
+            experiment._log(f'Valid epoch {e}, time: {dtime}s', **metrics)
+            experiment._log_neptune('valid', **metrics)
+
+        return experiment
+
     def save(self, path):
         torch.save({
-            'epoch': self.epoch,
-            'best_saving': self.best_saving,
-            'last_saving': self.last_saving,
-            'is_train': self.is_train,
+            'experiment_state_dict': {
+                'rank': self.rank,
+                'seed': self.seed,
+                'verbose': self.verbose,
+                'verbose_end': self.verbose_end,
+                'verbose_ndigits': self.verbose_ndigits,
+                'verbose_step': self.verbose_step,
+                'base_dir': self.base_dir,
+                'jupyters_path': self.jupyters_path,
+                'notebook_name': self.notebook_name,
+                'experiment_name': self.experiment_name,
+                'epoch': self.epoch,
+                'best_saving': self.best_saving,
+                'last_saving': self.last_saving,
+                'is_train': self.is_train,
+                'use_progress_bar': self.use_progress_bar,
+            },
+            'neptune_state_dict': {
+                'params': self.neptune_params,
+                'name': self.experiment_name,
+            },
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'scheduler_state_dict': self.scheduler.state_dict(),
             'metrics_state_dict': self.metrics.state_dict(),
+            'history_state_dict': {
+                'lr_history': self.lr_history,
+                'time_history_train': self.time_history_train,
+                'time_history_valid': self.time_history_valid,
+            },
         }, path)
 
     def load(self, path):
+        """
+        Load weights for model and optimizer.
+        If you want to load state of experiment you can use "resume" init
+        """
         checkpoint = torch.load(path)
-        self.epoch = checkpoint['epoch']
-        self.best_saving = checkpoint['best_saving']
-        self.last_saving = checkpoint['last_saving']
-        self.is_train = checkpoint['is_train']
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        self.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-        self.metrics.load_state_dict(checkpoint['metrics_state_dict'])
 
     def destroy(self):
         def _optimizer_to(optimizer, device):
