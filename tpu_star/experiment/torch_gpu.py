@@ -186,7 +186,7 @@ class TorchGPUExperiment(BaseExperiment):
                 self.save(f'{self.experiment_dir}/last.pt')
             last_saved_path = None
             for key, mode in self.best_saving.items():
-                if e == self.metrics.get_best_epoch(key, mode)['epoch']:
+                if self.epoch == self.metrics.get_best_epoch(key, mode)['epoch']:
                     if self.last_saving:
                         os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
                     elif last_saved_path:
