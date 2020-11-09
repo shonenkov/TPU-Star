@@ -257,6 +257,7 @@ class TorchGPUExperiment(BaseExperiment):
 
         experiment._init_neptune(neptune)
 
+        experiment.verbose = False
         for e in range(experiment.epoch + 1):
             lr = experiment.lr_history[e]
             experiment._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
@@ -273,7 +274,8 @@ class TorchGPUExperiment(BaseExperiment):
             experiment._log(f'Valid epoch {e}, time: {dtime}s', **metrics)
             experiment._log_neptune('valid', **metrics)
 
-        experiment.fit(train_loader, valid_loader, n_epochs)
+        experiment.verbose = experiment_state_dict['verbose']
+        experiment.fit(train_loader, valid_loader, n_epochs - experiment.epoch - 1)
 
         return experiment
 
