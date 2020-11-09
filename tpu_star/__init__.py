@@ -2,6 +2,6 @@
 from . import datasets, experiment, colab_utils, utils
 
 
-__version__ = '0.0.1-rc5'
+__version__ = '0.0.1-rc6'
 
 __all__ = ['datasets', 'experiment', 'colab_utils', 'utils']
