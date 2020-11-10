@@ -69,7 +69,6 @@ class MetricsMeter:
     def __init__(self):
         self.avg = defaultdict(float)
         self.sum = defaultdict(float)
-        self.count = defaultdict(float)
         self.history = defaultdict(list)
 
     def update(self, **kwargs):
