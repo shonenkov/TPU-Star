@@ -213,7 +213,8 @@ class TorchGPUExperiment(BaseExperiment):
         train_loader,
         valid_loader,
         n_epochs,
-        neptune=None
+        neptune=None,
+        seed=None,
     ):
         checkpoint = torch.load(checkpoint_path)
         experiment_state_dict = checkpoint['experiment_state_dict']
@@ -228,7 +229,7 @@ class TorchGPUExperiment(BaseExperiment):
             criterion=criterion,
             device=device,
             rank=experiment_state_dict['rank'],
-            seed=experiment_state_dict['seed'],
+            seed=experiment_state_dict['seed'] if seed is None else seed,
             verbose=experiment_state_dict['verbose'],
             verbose_end=experiment_state_dict['verbose_end'],
             verbose_ndigits=experiment_state_dict['verbose_ndigits'],
