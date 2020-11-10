@@ -10,7 +10,7 @@ PyTorch XLA Toolkit for quickly and easy prototyping on TPU (8 cores)
 ### Installing
 1. Using pip: 
 ```
-pip install tpu-star==0.0.1-rc7
+pip install tpu-star==0.0.1-rc8
 ```
 
 ### Examples

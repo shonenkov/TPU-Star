@@ -35,6 +35,7 @@ class TorchGPUExperiment(BaseExperiment):
         neptune_params=None,
         best_saving=True,
         last_saving=True,
+        low_memory=False,
     ):
         self.verbose_step = verbose_step
         super().__init__(
@@ -79,6 +80,8 @@ class TorchGPUExperiment(BaseExperiment):
         self.use_progress_bar = use_progress_bar
         self.train_progress_bar = None
         self.epoch_progress_bar = None
+        # #
+        self.low_memory = low_memory
 
     def handle_one_batch(self, batch, *args, **kwargs):
         """
@@ -181,6 +184,7 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             self._custom_action_after_valid_one_epoch()
             # #
+            self._low_memory()
             # #
             if self.last_saving:
                 self.save(f'{self.experiment_dir}/last.pt')
@@ -243,6 +247,7 @@ class TorchGPUExperiment(BaseExperiment):
             neptune_params=neptune_state_dict['params'],
             best_saving=experiment_state_dict['best_saving'],
             last_saving=experiment_state_dict['last_saving'],
+            low_memory=experiment_state_dict.get('low_memory', True)
         )
 
         experiment.epoch = experiment_state_dict['epoch']
@@ -275,6 +280,10 @@ class TorchGPUExperiment(BaseExperiment):
             experiment._log(f'Valid epoch {e}, time: {dtime}s', **metrics)
             experiment._log_neptune('valid', **metrics)
 
+            if experiment.low_memory:
+                experiment.metrics.train_metrics[e].history = {}
+                experiment.metrics.valid_metrics[e].history = {}
+
         experiment.verbose = experiment_state_dict['verbose']
         experiment.fit(train_loader, valid_loader, n_epochs - experiment.epoch - 1)
 
@@ -298,6 +307,7 @@ class TorchGPUExperiment(BaseExperiment):
                 'last_saving': self.last_saving,
                 'is_train': self.is_train,
                 'use_progress_bar': self.use_progress_bar,
+                'low_memory': self.low_memory,
             },
             'neptune_state_dict': {
                 'params': self.neptune_params,
@@ -362,6 +372,12 @@ class TorchGPUExperiment(BaseExperiment):
 
     def _rebuild_loader(self, loader):
         return loader
+
+    def _low_memory(self):
+        if self.low_memory:
+            # prune odd history of train/valid metrics
+            self.metrics.train_metrics[self.epoch].history = {}
+            self.metrics.valid_metrics[self.epoch].history = {}
 
     def _wipe_memory(self):
         gc.collect()
