@@ -2,6 +2,6 @@ CHANGELOG
 =========
 
 
-v0.0.9-rc
+v0.0.1-rc
 ----------
 - initial version
