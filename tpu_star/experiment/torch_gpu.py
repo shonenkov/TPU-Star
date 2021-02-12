@@ -39,6 +39,7 @@ class TorchGPUExperiment(BaseExperiment):
         optuna=None,
         optuna_trial=None,
         optuna_report_metric=None,
+        **kwargs,
     ):
         self.verbose_step = verbose_step
         super().__init__(
@@ -56,6 +57,7 @@ class TorchGPUExperiment(BaseExperiment):
             optuna=optuna,
             optuna_trial=optuna_trial,
             optuna_report_metric=optuna_report_metric,
+            **kwargs,
         )
         # #
         # #
