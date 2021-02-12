@@ -22,6 +22,9 @@ class BaseExperiment:
         experiment_name=None,
         neptune=None,
         neptune_params=None,
+        optuna=None,
+        optuna_trial=None,
+        optuna_report_metric=None,
     ):
         # #
         self.rank = rank
@@ -57,6 +60,11 @@ class BaseExperiment:
         # #
         self.neptune_params = neptune_params or {}
         self._init_neptune(neptune)
+        # #
+        # #
+        self.optuna = optuna
+        self.optuna_trial = optuna_trial
+        self.optuna_report_metric = optuna_report_metric
 
     def _seed_everything(self, seed):
         random.seed(seed)
@@ -103,3 +111,13 @@ class BaseExperiment:
         for key, arg in kwargs.items():
             msg = f'{msg}, {key}={arg:.{self.verbose_ndigits}f}'
         return msg
+
+    def _report_optuna(self, metrics, epoch):
+        if self.optuna_trial:
+            self.optuna_trial.report(metrics, epoch)
+            if self.optuna_trial.should_prune():
+                self.destroy()
+                raise self.optuna.exceptions.TrialPruned()
+
+    def destroy(self):
+        pass

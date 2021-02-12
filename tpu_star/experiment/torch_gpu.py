@@ -36,6 +36,9 @@ class TorchGPUExperiment(BaseExperiment):
         best_saving=True,
         last_saving=True,
         low_memory=False,
+        optuna=None,
+        optuna_trial=None,
+        optuna_report_metric=None,
     ):
         self.verbose_step = verbose_step
         super().__init__(
@@ -50,6 +53,9 @@ class TorchGPUExperiment(BaseExperiment):
             experiment_name=experiment_name,
             neptune=neptune,
             neptune_params=neptune_params,
+            optuna=optuna,
+            optuna_trial=optuna_trial,
+            optuna_report_metric=optuna_report_metric,
         )
         # #
         # #
@@ -204,6 +210,8 @@ class TorchGPUExperiment(BaseExperiment):
                 self.train_progress_bar.update(1)
                 self.epoch_progress_bar.update(-len(train_loader))
             # #
+            if self.optuna_report_metric:
+                self._report_optuna(metrics[self.optuna_report_metric], self.epoch)
 
     @classmethod
     def resume(
