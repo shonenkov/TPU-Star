@@ -39,6 +39,7 @@ class TorchGPUExperiment(BaseExperiment):
         optuna=None,
         optuna_trial=None,
         optuna_report_metric=None,
+        **kwargs,
     ):
         self.verbose_step = verbose_step
         super().__init__(
@@ -56,6 +57,7 @@ class TorchGPUExperiment(BaseExperiment):
             optuna=optuna,
             optuna_trial=optuna_trial,
             optuna_report_metric=optuna_report_metric,
+            **kwargs,
         )
         # #
         # #
@@ -227,6 +229,7 @@ class TorchGPUExperiment(BaseExperiment):
         n_epochs,
         neptune=None,
         seed=None,
+        **kwargs,
     ):
         checkpoint = torch.load(checkpoint_path)
         experiment_state_dict = checkpoint['experiment_state_dict']
@@ -255,7 +258,8 @@ class TorchGPUExperiment(BaseExperiment):
             neptune_params=neptune_state_dict['params'],
             best_saving=experiment_state_dict['best_saving'],
             last_saving=experiment_state_dict['last_saving'],
-            low_memory=experiment_state_dict.get('low_memory', True)
+            low_memory=experiment_state_dict.get('low_memory', True),
+            **kwargs
         )
 
         experiment.epoch = experiment_state_dict['epoch']

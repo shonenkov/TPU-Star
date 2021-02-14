@@ -34,6 +34,7 @@ class TorchTPUExperiment(TorchGPUExperiment):
         neptune_params=None,
         best_saving=True,
         last_saving=True,
+        **kwargs,
     ):
         if rank == 0:
             time.sleep(1)
@@ -61,6 +62,7 @@ class TorchTPUExperiment(TorchGPUExperiment):
             neptune_params=neptune_params,
             best_saving=best_saving,
             last_saving=last_saving,
+            **kwargs,
         )
 
     def handle_one_batch(self, batch, *args, **kwargs):

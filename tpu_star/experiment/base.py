@@ -25,6 +25,7 @@ class BaseExperiment:
         optuna=None,
         optuna_trial=None,
         optuna_report_metric=None,
+        **kwargs
     ):
         # #
         self.rank = rank
@@ -65,6 +66,9 @@ class BaseExperiment:
         self.optuna = optuna
         self.optuna_trial = optuna_trial
         self.optuna_report_metric = optuna_report_metric
+
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def _seed_everything(self, seed):
         random.seed(seed)
