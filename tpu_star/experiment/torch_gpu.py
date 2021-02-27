@@ -8,7 +8,7 @@ import torch
 from tqdm.auto import tqdm
 
 from .base import BaseExperiment
-from .metrics import MetricsGrabber
+from .metrics import MetricsGrabber, SystemMetricsGrabber
 
 
 class TorchGPUExperiment(BaseExperiment):
@@ -71,6 +71,7 @@ class TorchGPUExperiment(BaseExperiment):
         self.epoch = -1
         self.is_train = None
         self.metrics = MetricsGrabber()
+        self.system_metrics = SystemMetricsGrabber()
         # #
         # #
         self.last_saving = last_saving
@@ -80,10 +81,6 @@ class TorchGPUExperiment(BaseExperiment):
             self.best_saving = {'loss': 'min'}
         else:
             self.best_saving = best_saving
-        # #
-        self.lr_history = []
-        self.time_history_train = []
-        self.time_history_valid = []
         # #
         self.use_progress_bar = use_progress_bar
         self.train_progress_bar = None
@@ -97,11 +94,11 @@ class TorchGPUExperiment(BaseExperiment):
 
         [model forward using self.model]
 
-        [call criterion using self.criterion]
+        [calculate criterion using self.criterion]
 
         [calculate metrics]
 
-        self.metrics.update(bs=bs, <metric_name_1>=<value_1>, ..., <metric_name_n>=<value_n>)
+        self.metrics.update(<metric_name_1>=<value_1>, ..., <metric_name_n>=<value_n>)
 
         if self.is_train:
             loss.backward()
@@ -159,35 +156,37 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             # #
             lr = self.optimizer.param_groups[0]['lr']
-            self.lr_history.append(lr)
             self._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
-            self._log_neptune(lr=lr)
-            self._log_neptune(epoch=self.epoch)
+            self.system_metrics.update(lr=lr, epoch=self.epoch)
             # #
             # #
-            t = time.time()
+            epoch_time = time.time()
             self.train_one_epoch(self._rebuild_loader(train_loader))
             # #
             stage = 'train'
             metrics = self._get_current_metrics(stage)
-            dtime = time.time() - t
-            self.time_history_train.append(dtime)
-            self._log(f'Train epoch {self.epoch}, time: {dtime:.1f}s', **metrics)
-            self._log_neptune(stage, **metrics, epoch_time=dtime)
+            epoch_time = time.time() - epoch_time
+            self.system_metrics.update(train_epoch_time=epoch_time)
+            self._log(f'Train epoch {self.epoch}, time: {epoch_time:.1f}s', **metrics)
+            self._log_neptune(stage, **metrics)
             # #
             # #
             self._custom_action_after_train_one_epoch()
             # #
             # #
-            t = time.time()
+            epoch_time = time.time()
             self.validation(self._rebuild_loader(valid_loader))
             # #
             stage = 'valid'
             metrics = self._get_current_metrics(stage)
-            dtime = time.time() - t
-            self.time_history_valid.append(dtime)
-            self._log(f'Valid epoch {self.epoch}, time: {dtime:.1f}s', **metrics)
-            self._log_neptune(stage, **metrics, epoch_time=dtime)
+            epoch_time = time.time() - epoch_time
+            self.system_metrics.update(valid_epoch_time=epoch_time, valid_iterations=len(valid_loader))
+            self._log(f'Valid epoch {self.epoch}, time: {epoch_time:.1f}s', **metrics)
+            self._log_neptune(stage, **metrics)
+            # #
+            # #
+            system_metrics = self.system_metrics.metrics[self.epoch].avg
+            self._log_neptune(**system_metrics)
             # #
             # #
             self._custom_action_after_valid_one_epoch()
@@ -267,31 +266,25 @@ class TorchGPUExperiment(BaseExperiment):
         experiment.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         experiment.scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         experiment.metrics.load_state_dict(checkpoint['metrics_state_dict'])
-
-        history_state_dict = checkpoint['history_state_dict']
-        experiment.time_history_train = history_state_dict['time_history_train']
-        experiment.time_history_valid = history_state_dict['time_history_valid']
-        experiment.lr_history = history_state_dict['lr_history']
+        experiment.system_metrics.load_state_dict(checkpoint['system_metrics_state_dict'])
 
         experiment._init_neptune(neptune)
 
         experiment.verbose = False
         for e in range(experiment.epoch + 1):
-            lr = experiment.lr_history[e]
-            experiment._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
-            experiment._log_neptune(lr=lr)
-            experiment._log_neptune(epoch=e)
-
-            dtime = experiment.time_history_train[e]
+            system_metrics = experiment.system_metrics.metrics[e].avg
+            experiment._log(f'\n{datetime.utcnow().isoformat()}\nlr: {system_metrics["lr"]}')
+            # #
             metrics = experiment.metrics.train_metrics[e].avg
-            experiment._log(f'Train epoch {e}, time: {dtime}s', **metrics)
-            experiment._log_neptune('train', **metrics, epoch_time=dtime)
-
-            dtime = experiment.time_history_valid[e]
+            experiment._log(f'Train epoch {e}, time: {system_metrics["train_epoch_time"]}s', **metrics)
+            experiment._log_neptune('train', **metrics)
+            # #
             metrics = experiment.metrics.valid_metrics[e].avg
-            experiment._log(f'Valid epoch {e}, time: {dtime}s', **metrics)
-            experiment._log_neptune('valid', **metrics, epoch_time=dtime)
-
+            experiment._log(f'Valid epoch {e}, time: {system_metrics["valid_epoch_time"]}s', **metrics)
+            experiment._log_neptune('valid', **metrics)
+            # #
+            experiment._log_neptune(**system_metrics)
+            # #
             if experiment.low_memory:
                 experiment.metrics.train_metrics[e].history = {}
                 experiment.metrics.valid_metrics[e].history = {}
@@ -329,11 +322,7 @@ class TorchGPUExperiment(BaseExperiment):
             'optimizer_state_dict': self.optimizer.state_dict(),
             'scheduler_state_dict': self.scheduler.state_dict(),
             'metrics_state_dict': self.metrics.state_dict(),
-            'history_state_dict': {
-                'lr_history': self.lr_history,
-                'time_history_train': self.time_history_train,
-                'time_history_valid': self.time_history_valid,
-            },
+            'system_metrics_state_dict': self.system_metrics.state_dict(),
         }, path)
 
     def load(self, path):
@@ -405,6 +394,7 @@ class TorchGPUExperiment(BaseExperiment):
     def _update_epoch(self):
         self.epoch += 1
         self.metrics.update_epoch()
+        self.system_metrics.update_epoch()
 
     def _train(self):
         self.model.train()
