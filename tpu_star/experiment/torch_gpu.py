@@ -173,7 +173,7 @@ class TorchGPUExperiment(BaseExperiment):
             dtime = time.time() - t
             self.time_history_train.append(dtime)
             self._log(f'Train epoch {self.epoch}, time: {dtime:.1f}s', **metrics)
-            self._log_neptune(stage, **metrics)
+            self._log_neptune(stage, **metrics, epoch_time=dtime)
             # #
             # #
             self._custom_action_after_train_one_epoch()
@@ -187,7 +187,7 @@ class TorchGPUExperiment(BaseExperiment):
             dtime = time.time() - t
             self.time_history_valid.append(dtime)
             self._log(f'Valid epoch {self.epoch}, time: {dtime:.1f}s', **metrics)
-            self._log_neptune(stage, **metrics)
+            self._log_neptune(stage, **metrics, epoch_time=dtime)
             # #
             # #
             self._custom_action_after_valid_one_epoch()
@@ -285,12 +285,12 @@ class TorchGPUExperiment(BaseExperiment):
             dtime = experiment.time_history_train[e]
             metrics = experiment.metrics.train_metrics[e].avg
             experiment._log(f'Train epoch {e}, time: {dtime}s', **metrics)
-            experiment._log_neptune('train', **metrics)
+            experiment._log_neptune('train', **metrics, epoch_time=dtime)
 
             dtime = experiment.time_history_valid[e]
             metrics = experiment.metrics.valid_metrics[e].avg
             experiment._log(f'Valid epoch {e}, time: {dtime}s', **metrics)
-            experiment._log_neptune('valid', **metrics)
+            experiment._log_neptune('valid', **metrics, epoch_time=dtime)
 
             if experiment.low_memory:
                 experiment.metrics.train_metrics[e].history = {}
