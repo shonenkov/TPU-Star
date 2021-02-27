@@ -4,3 +4,6 @@ pytest-cov==2.10.1
 pre-commit==1.18.3
 pandas>=0.22
 gdown>=3.6.0
+scikit-learn<=1.0.0
+albumentations<=1.0.0
+torchvision<=1.0.0
