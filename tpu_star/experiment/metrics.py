@@ -2,6 +2,34 @@
 from collections import defaultdict
 
 
+class SystemMetricsGrabber:
+    def __init__(self):
+        self.epoch = -1
+        self.metrics = {}
+
+    def update(self, **kwargs):
+        self.metrics[self.epoch].update(**kwargs)
+
+    def update_epoch(self):
+        self.epoch += 1
+        self.metrics[self.epoch] = MetricsMeter()
+
+    def state_dict(self):
+        metrics_state_dict = {}
+        for e in range(self.epoch + 1):
+            metrics_state_dict[e] = self.metrics[e].state_dict()
+        return {
+            'epoch': self.epoch,
+            'metrics': metrics_state_dict,
+        }
+
+    def load_state_dict(self, state_dict):
+        self.epoch = state_dict['epoch']
+        for e, metrics_state_dict in state_dict['metrics'].items():
+            self.metrics[e] = MetricsMeter()
+            self.metrics[e].load_state_dict(metrics_state_dict)
+
+
 class MetricsGrabber:
 
     def __init__(self):
