@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import shutil
+
 import albumentations as A
 import torchvision
 import torch
@@ -90,5 +92,64 @@ def test_run_experiment():
     experiment.fit(train_loader, valid_loader, num_epochs)
     experiment.destroy()
 
-    import shutil
+    shutil.rmtree('/tmp/saved_models')
+
+
+def test_resume_experiment():
+    lr = 0.0001 * 8
+    batch_size = 32
+    num_epochs = 5
+    max_lr = 0.001 * 8
+    pct_start = 0.1
+    experiment_name = 'test-cpu-mnist'
+    device = torch.device('cpu')
+
+    mx = create_model()
+    train_dataset, valid_dataset = build_datasets()
+
+    model = mx.to(device)
+
+    criterion = torch.nn.CrossEntropyLoss().to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, drop_last=False)
+
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer,
+        max_lr=max_lr,
+        steps_per_epoch=len(train_loader),
+        pct_start=pct_start,
+        epochs=num_epochs,
+    )
+    experiment = MNISTExperiment(
+        model=model,
+        optimizer=optimizer,
+        criterion=criterion,
+        scheduler=scheduler,
+        device=device,
+        base_dir='/tmp/saved_models',
+        experiment_name=experiment_name,
+        verbose_step=10**5,
+        seed=42,
+        use_progress_bar=False,
+        low_memory=True,
+    )
+    experiment.fit(train_loader, valid_loader, 2)
+    experiment.destroy()
+
+    experiment = MNISTExperiment.resume(
+        checkpoint_path=f'/tmp/saved_models/{experiment_name}/last.pt',
+        train_loader=train_loader,
+        valid_loader=valid_loader,
+        n_epochs=num_epochs,
+        model=model,
+        optimizer=optimizer,
+        criterion=criterion,
+        scheduler=scheduler,
+        device=device,
+        seed=43
+    )
+    experiment.destroy()
+
     shutil.rmtree('/tmp/saved_models')
