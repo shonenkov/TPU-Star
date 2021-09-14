@@ -1,5 +1,5 @@
 # TPU-Star 
-PyTorch XLA Toolkit for quickly and easy prototyping on TPU (8 cores)
+Toolkit for quickly and easy prototyping on TPU and GPU. This repo was created by @shonenkov and is used for own research purposes without documentation, because used training mechanisms is widely known and well described in PyTorch. If you have found some link or pip library with this repo in my papers or tutorials - so sorry :D you can try to copy necessary parts of code or use another toolkit 
 
 [![PyTorch XLA](https://img.shields.io/badge/TPU-PyTorch/XLA-darkgreen.svg)](https://github.com/pytorch/xla)
 [![Build Status](https://api.travis-ci.com/shonenkov/TPU-Star.svg)](https://travis-ci.com/shonenkov/TPU-Star)
