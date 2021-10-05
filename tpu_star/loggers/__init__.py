@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from .base import BaseLogger
 from .std import STDLogger
 from .folder import FolderLogger

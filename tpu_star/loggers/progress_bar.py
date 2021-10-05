@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from tqdm import tqdm
 
 from .base import BaseLogger

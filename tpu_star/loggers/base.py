@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 class BaseLogger:
 
     def create_experiment(self, experiment_name, h_params):

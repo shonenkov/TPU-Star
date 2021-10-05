@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 def cast_value_to_str(value, verbose_ndigits):
     if type(value) == int:

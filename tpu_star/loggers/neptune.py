@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from .base import BaseLogger
 
 
@@ -29,5 +30,3 @@ class NeptuneLogger(BaseLogger):
 
     def log_artifact(self, abs_path, *args, **kwargs):
         raise NotImplementedError
-
-

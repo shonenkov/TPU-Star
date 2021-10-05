@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger
 import os.path
 import shutil
 
@@ -15,7 +16,6 @@ sys.path.insert(0, '.')
 
 from tpu_star.experiment import TorchGPUExperiment  # noqa
 from tpu_star.datasets import mnist  # noqa
-from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger
 
 
 def build_datasets():
