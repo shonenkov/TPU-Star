@@ -1,19 +1,25 @@
 # -*- coding: utf-8 -*-
+import os.path
 import shutil
 
 import albumentations as A
 import torchvision
 import torch
 import sklearn
+import pytest
 from sklearn.model_selection import train_test_split
 from albumentations.pytorch.transforms import ToTensorV2
 
-from tpu_star.experiment import TorchGPUExperiment
-from tpu_star.datasets import mnist
+import sys
+sys.path.insert(0, '.')
+
+from tpu_star.experiment import TorchGPUExperiment  # noqa
+from tpu_star.datasets import mnist  # noqa
+from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger
 
 
 def build_datasets():
-    df = mnist.load()[:200]
+    df = mnist.load()[:500]
     train_index, valid_index = train_test_split(df.index, train_size=0.8, stratify=df['label'], random_state=42)
     df_train, df_valid = df.loc[train_index], df.loc[valid_index]
     transforms = A.Compose([A.Resize(height=28, width=28, p=1.0), ToTensorV2()])
@@ -76,17 +82,20 @@ def test_run_experiment():
         pct_start=pct_start,
         epochs=num_epochs,
     )
+    loggers = [
+        STDLogger(),
+        FolderLogger(base_dir='/tmp/saved_models', main_script_abs_path=os.path.abspath(__file__)),
+        ProgressBarLogger(),
+    ]
     experiment = MNISTExperiment(
         model=model,
         optimizer=optimizer,
         criterion=criterion,
         scheduler=scheduler,
         device=device,
-        base_dir='/tmp/saved_models',
+        loggers=loggers,
         experiment_name=experiment_name,
-        verbose_step=10**5,
         seed=42,
-        use_progress_bar=False,
         low_memory=True,
     )
     experiment.fit(train_loader, valid_loader, num_epochs)
@@ -95,6 +104,7 @@ def test_run_experiment():
     shutil.rmtree('/tmp/saved_models')
 
 
+@pytest.mark.skip()
 def test_resume_experiment():
     lr = 0.0001 * 8
     batch_size = 32

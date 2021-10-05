@@ -120,7 +120,7 @@ class TorchTPUExperiment(TorchGPUExperiment):
     def optimizer_step(self):
         self.xm.optimizer_step(self.optimizer)
 
-    def _seed_everything(self, seed):
+    def seed_everything(self, seed):
         random.seed(seed)
         os.environ['PYTHONHASHSEED'] = str(seed)
         np.random.seed(seed)

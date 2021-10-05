@@ -1,11 +1,9 @@
 # -*- coding: utf-8 -*-
-import os
 import gc
 import time
 from datetime import datetime
 
 import torch
-from tqdm.auto import tqdm
 
 from .base import BaseExperiment
 from .metrics import MetricsGrabber, SystemMetricsGrabber
@@ -22,41 +20,20 @@ class TorchGPUExperiment(BaseExperiment):
         device,
         rank=0,
         seed=42,
-        verbose=True,
-        verbose_end='\n',
-        verbose_ndigits=5,
-        verbose_step=1,
-        use_progress_bar=False,
-        base_dir='./saved_models',
-        jupyters_path=None,
-        notebook_name=None,
+        loggers=None,
+        h_params=None,
         experiment_name=None,
-        neptune=None,
-        neptune_params=None,
         best_saving=True,
         last_saving=True,
         low_memory=False,
-        optuna=None,
-        optuna_trial=None,
-        optuna_report_metric=None,
         **kwargs,
     ):
-        self.verbose_step = verbose_step
         super().__init__(
             rank=rank,
             seed=seed,
-            verbose=verbose,
-            verbose_end=verbose_end,
-            verbose_ndigits=verbose_ndigits,
-            base_dir=base_dir,
-            jupyters_path=jupyters_path,
-            notebook_name=notebook_name,
+            loggers=loggers,
+            h_params=h_params,
             experiment_name=experiment_name,
-            neptune=neptune,
-            neptune_params=neptune_params,
-            optuna=optuna,
-            optuna_trial=optuna_trial,
-            optuna_report_metric=optuna_report_metric,
             **kwargs,
         )
         # #
@@ -69,6 +46,7 @@ class TorchGPUExperiment(BaseExperiment):
         # #
         # #
         self.epoch = -1
+        self.global_step = 0
         self.is_train = None
         self.metrics = MetricsGrabber()
         self.system_metrics = SystemMetricsGrabber()
@@ -81,10 +59,6 @@ class TorchGPUExperiment(BaseExperiment):
             self.best_saving = {'loss': 'min'}
         else:
             self.best_saving = best_saving
-        # #
-        self.use_progress_bar = use_progress_bar
-        self.train_progress_bar = None
-        self.epoch_progress_bar = None
         # #
         self.low_memory = low_memory
 
@@ -122,13 +96,11 @@ class TorchGPUExperiment(BaseExperiment):
         self._train()
         for step, batch in enumerate(train_loader):
             self.handle_one_batch(batch)
-            if step and step % self.verbose_step == 0:
-                self._print(
-                    f'Train step {step}/{len(train_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics.train_metrics[self.epoch].avg
-                )
-            if self.rank == 0 and self.use_progress_bar:
-                self.epoch_progress_bar.update(1)
+            self._log_on_step(
+                stage='train', step=step, epoch=self.epoch, global_step=self.global_step,
+                time=time.time() - t, **self.metrics.train_metrics[self.epoch].avg
+            )
+            self.global_step += 1
 
     def validation(self, valid_loader):
         t = time.time()
@@ -136,18 +108,14 @@ class TorchGPUExperiment(BaseExperiment):
         for step, batch in enumerate(valid_loader):
             with torch.no_grad():
                 self.handle_one_batch(batch)
-            if step and step % self.verbose_step == 0:
-                self._print(
-                    f'Valid step {step}/{len(valid_loader)}, time: {(time.time() - t):.1f}s',
-                    **self.metrics.valid_metrics[self.epoch].avg
-                )
+            self._log_on_step(
+                stage='valid', step=step, epoch=self.epoch, global_step=self.global_step,
+                time=time.time() - t, **self.metrics.valid_metrics[self.epoch].avg
+            )
 
     def fit(self, train_loader, valid_loader, n_epochs):
         # #
-        if self.rank == 0 and self.use_progress_bar:
-            self.train_progress_bar = tqdm(total=n_epochs)
-            self.epoch_progress_bar = tqdm(total=len(train_loader), leave=False)
-        # #
+        self._log_on_start_training(n_epochs=n_epochs, steps_per_epoch=len(train_loader))
         for e in range(n_epochs):
             self._update_epoch()
             # #
@@ -155,64 +123,51 @@ class TorchGPUExperiment(BaseExperiment):
             self._custom_action_before_train_one_epoch()
             # #
             # #
+            stage = 'train'
             lr = self.optimizer.param_groups[0]['lr']
-            self._log(f'\n{datetime.utcnow().isoformat()}\nlr: {lr}')
+            self._log_on_start_epoch(stage=stage, lr=lr)
             self.system_metrics.update(lr=lr, epoch=self.epoch)
-            # #
-            # #
             epoch_time = time.time()
             self.train_one_epoch(self._rebuild_loader(train_loader))
-            # #
-            stage = 'train'
             metrics = self._get_current_metrics(stage)
             epoch_time = time.time() - epoch_time
             self.system_metrics.update(train_epoch_time=epoch_time)
-            self._log(f'Train epoch {self.epoch}, time: {epoch_time:.1f}s', **metrics)
-            self._log_neptune(stage, **metrics)
+            self._log_on_end_epoch(stage=stage, epoch=self.epoch, time=epoch_time, **metrics)
             # #
             # #
             self._custom_action_after_train_one_epoch()
             # #
             # #
+            stage = 'valid'
+            self._log_on_start_epoch(stage=stage, lr=self.optimizer.param_groups[0]['lr'])
             epoch_time = time.time()
             self.validation(self._rebuild_loader(valid_loader))
-            # #
-            stage = 'valid'
             metrics = self._get_current_metrics(stage)
             epoch_time = time.time() - epoch_time
             self.system_metrics.update(valid_epoch_time=epoch_time, valid_iterations=len(valid_loader))
-            self._log(f'Valid epoch {self.epoch}, time: {epoch_time:.1f}s', **metrics)
-            self._log_neptune(stage, **metrics)
-            # #
-            # #
-            system_metrics = self.system_metrics.metrics[self.epoch].avg
-            self._log_neptune(**system_metrics)
+            self._log_on_end_epoch(stage=stage, epoch=self.epoch, time=epoch_time, **metrics)
             # #
             # #
             self._custom_action_after_valid_one_epoch()
-            # #
             self._low_memory()
             # #
-            if self.last_saving:
-                self.save(f'{self.experiment_dir}/last.pt')
-            last_saved_path = None
-            for key, mode in self.best_saving.items():
-                if self.epoch == self.metrics.get_best_epoch(key, mode)['epoch']:
-                    if self.last_saving:
-                        os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
-                    elif last_saved_path:
-                        os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
-                    else:
-                        last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
-                        self.save(last_saved_path)
+
+            # if self.last_saving:
+            #     self.save(f'{self.experiment_dir}/last.pt')
+            # last_saved_path = None
+            # for key, mode in self.best_saving.items():
+            #     if self.epoch == self.metrics.get_best_epoch(key, mode)['epoch']:
+            #         if self.last_saving:
+            #             os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
+            #         elif last_saved_path:
+            #             os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
+            #         else:
+            #             last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
+            #             self.save(last_saved_path)
+
             # #
-            # #
-            if self.rank == 0 and self.use_progress_bar:
-                self.train_progress_bar.update(1)
-                self.epoch_progress_bar.update(-len(train_loader))
-            # #
-            if self.optuna_report_metric:
-                self._report_optuna(metrics[self.optuna_report_metric], self.epoch)
+
+        self._log_on_end_training()
 
     @classmethod
     def resume(
@@ -232,7 +187,7 @@ class TorchGPUExperiment(BaseExperiment):
     ):
         checkpoint = torch.load(checkpoint_path)
         experiment_state_dict = checkpoint['experiment_state_dict']
-        neptune_state_dict = checkpoint['neptune_state_dict']
+        # neptune_state_dict = checkpoint['neptune_state_dict']
 
         experiment_name = 'R+' + experiment_state_dict['experiment_name']
 
@@ -248,13 +203,12 @@ class TorchGPUExperiment(BaseExperiment):
             verbose_end=experiment_state_dict['verbose_end'],
             verbose_ndigits=experiment_state_dict['verbose_ndigits'],
             verbose_step=experiment_state_dict['verbose_step'],
-            use_progress_bar=experiment_state_dict['use_progress_bar'],
             base_dir=experiment_state_dict['base_dir'],
             jupyters_path=experiment_state_dict['jupyters_path'],
             notebook_name=experiment_state_dict['notebook_name'],
             experiment_name=experiment_name,
-            neptune=None,
-            neptune_params=neptune_state_dict['params'],
+            # neptune=None,
+            # neptune_params=neptune_state_dict['params'],
             best_saving=experiment_state_dict['best_saving'],
             last_saving=experiment_state_dict['last_saving'],
             low_memory=experiment_state_dict.get('low_memory', True),
@@ -273,23 +227,22 @@ class TorchGPUExperiment(BaseExperiment):
         experiment.verbose = False
         for e in range(experiment.epoch + 1):
             system_metrics = experiment.system_metrics.metrics[e].avg
-            experiment._log(f'\n{datetime.utcnow().isoformat()}\nlr: {system_metrics["lr"]}')
+            experiment._log_on_step(f'\n{datetime.utcnow().isoformat()}\nlr: {system_metrics["lr"]}')
             # #
             metrics = experiment.metrics.train_metrics[e].avg
-            experiment._log(f'Train epoch {e}, time: {system_metrics["train_epoch_time"]}s', **metrics)
-            experiment._log_neptune('train', **metrics)
+            experiment._log_on_step(f'Train epoch {e}, time: {system_metrics["train_epoch_time"]}s', **metrics)
+            # experiment._log_neptune('train', **metrics)
             # #
             metrics = experiment.metrics.valid_metrics[e].avg
-            experiment._log(f'Valid epoch {e}, time: {system_metrics["valid_epoch_time"]}s', **metrics)
-            experiment._log_neptune('valid', **metrics)
+            experiment._log_on_step(f'Valid epoch {e}, time: {system_metrics["valid_epoch_time"]}s', **metrics)
+            # experiment._log_neptune('valid', **metrics)
             # #
-            experiment._log_neptune(**system_metrics)
+            # experiment._log_neptune(**system_metrics)
             # #
             if experiment.low_memory:
                 experiment.metrics.train_metrics[e].history = {}
                 experiment.metrics.valid_metrics[e].history = {}
 
-        experiment.verbose = experiment_state_dict['verbose']
         experiment.fit(train_loader, valid_loader, n_epochs - experiment.epoch - 1)
 
         return experiment
@@ -299,24 +252,12 @@ class TorchGPUExperiment(BaseExperiment):
             'experiment_state_dict': {
                 'rank': self.rank,
                 'seed': self.seed,
-                'verbose': self.verbose,
-                'verbose_end': self.verbose_end,
-                'verbose_ndigits': self.verbose_ndigits,
-                'verbose_step': self.verbose_step,
-                'base_dir': self.base_dir,
-                'jupyters_path': self.jupyters_path,
-                'notebook_name': self.notebook_name,
                 'experiment_name': self.experiment_name,
                 'epoch': self.epoch,
                 'best_saving': self.best_saving,
                 'last_saving': self.last_saving,
                 'is_train': self.is_train,
-                'use_progress_bar': self.use_progress_bar,
                 'low_memory': self.low_memory,
-            },
-            'neptune_state_dict': {
-                'params': self.neptune_params,
-                'name': self.experiment_name,
             },
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
@@ -365,8 +306,8 @@ class TorchGPUExperiment(BaseExperiment):
         gc.collect()
         torch.cuda.empty_cache()
 
-        if self.rank == 0 and self.neptune:
-            self.neptune.stop()
+        # if self.rank == 0 and self.neptune:
+        #     self.neptune.stop()
 
     def optimizer_step(self):
         self.optimizer.step()
