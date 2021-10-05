@@ -33,14 +33,14 @@ class FolderLogger(BaseLogger):
         pass
 
     def log_on_step(self, stage, step, epoch, global_step, *args, **kwargs):
-        if stage == 'train':
-            msg = f'Train step {step}/{self.steps_per_epoch}'
-        elif stage == 'valid':
-            msg = f'Valid step {step}/{self.steps_per_epoch}'
-        else:
-            msg = f'{step}/{self.steps_per_epoch}'
-        msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
         if step and step % self.verbose_step == 0:
+            if stage == 'train':
+                msg = f'Train step {step}/{self.steps_per_epoch}'
+            elif stage == 'valid':
+                msg = f'Valid step {step}/{self.steps_per_epoch}'
+            else:
+                msg = f'{step}/{self.steps_per_epoch}'
+            msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
             with open(self.log_path, 'a+') as logger:
                 logger.write(f'{msg}\n')
 
@@ -68,6 +68,6 @@ class FolderLogger(BaseLogger):
         with open(self.log_path, 'a+') as logger:
             logger.write(f'{msg}\n')
 
-    def log_artifact(self, abs_path, *args, **kwargs):
+    def log_artifact(self, abs_path, name=None):
         name = os.path.basename(abs_path)
         os.system(f'cp "{abs_path}" "{self.experiment_dir}/{name}"')

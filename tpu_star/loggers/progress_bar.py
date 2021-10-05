@@ -38,5 +38,5 @@ class ProgressBarLogger(BaseLogger):
         if stage == 'valid':
             self.one_epoch_progress_bar.update(-self.steps_per_epoch)
 
-    def log_artifact(self, abs_path, *args, **kwargs):
+    def log_artifact(self, abs_path, name):
         pass

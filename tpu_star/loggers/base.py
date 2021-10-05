@@ -22,5 +22,5 @@ class BaseLogger:
     def log_on_end_epoch(self, stage, *args, **kwargs):
         raise NotImplementedError
 
-    def log_artifact(self, abs_path):
+    def log_artifact(self, abs_path, name):
         raise NotImplementedError

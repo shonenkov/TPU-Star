@@ -28,6 +28,8 @@ class TorchGPUExperiment(BaseExperiment):
         low_memory=False,
         **kwargs,
     ):
+        h_params = h_params or {}
+        h_params['device'] = device.type
         super().__init__(
             rank=rank,
             seed=seed,

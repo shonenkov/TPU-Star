@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger
 import os.path
 import shutil
 
+import neptune.new as neptune
 import albumentations as A
 import torchvision
 import torch
@@ -16,6 +16,7 @@ sys.path.insert(0, '.')
 
 from tpu_star.experiment import TorchGPUExperiment  # noqa
 from tpu_star.datasets import mnist  # noqa
+from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger, NeptuneLogger  # noqa
 
 
 def build_datasets():
@@ -82,10 +83,12 @@ def test_run_experiment():
         pct_start=pct_start,
         epochs=num_epochs,
     )
+    run = neptune.init(project='aleksey.shonenkov/tpu-star-mnist-2')
     loggers = [
         STDLogger(),
         FolderLogger(base_dir='/tmp/saved_models', main_script_abs_path=os.path.abspath(__file__)),
         ProgressBarLogger(),
+        NeptuneLogger(run, main_script_abs_path=os.path.abspath(__file__)),
     ]
     experiment = MNISTExperiment(
         model=model,
@@ -93,6 +96,7 @@ def test_run_experiment():
         criterion=criterion,
         scheduler=scheduler,
         device=device,
+        h_params={'tags': ['tests']},
         loggers=loggers,
         experiment_name=experiment_name,
         seed=42,

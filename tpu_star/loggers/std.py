@@ -18,14 +18,14 @@ class STDLogger(BaseLogger):
         pass
 
     def log_on_step(self, stage, step, epoch, global_step, *args, **kwargs):
-        if stage == 'train':
-            msg = f'Train step {step}/{self.steps_per_epoch}'
-        elif stage == 'valid':
-            msg = f'Valid step {step}/{self.steps_per_epoch}'
-        else:
-            msg = f'{step}/{self.steps_per_epoch}'
-        msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
         if step and step % self.verbose_step == 0:
+            if stage == 'train':
+                msg = f'Train step {step}/{self.steps_per_epoch}'
+            elif stage == 'valid':
+                msg = f'Valid step {step}/{self.steps_per_epoch}'
+            else:
+                msg = f'{step}/{self.steps_per_epoch}'
+            msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
             print(msg)
 
     def log_on_start_training(self, n_epochs, steps_per_epoch, *args, **kwargs):
@@ -49,5 +49,5 @@ class STDLogger(BaseLogger):
         msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
         print(msg)
 
-    def log_artifact(self, abs_path, *args, **kwargs):
+    def log_artifact(self, abs_path, name):
         pass
