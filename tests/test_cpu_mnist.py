@@ -2,12 +2,13 @@
 import os.path
 import shutil
 
-import neptune.new as neptune
-import albumentations as A
-import torchvision
+import wandb
 import torch
-import sklearn
 import pytest
+import sklearn
+import torchvision
+import albumentations as A
+import neptune.new as neptune
 from sklearn.model_selection import train_test_split
 from albumentations.pytorch.transforms import ToTensorV2
 
@@ -16,7 +17,8 @@ sys.path.insert(0, '.')
 
 from tpu_star.experiment import TorchGPUExperiment  # noqa
 from tpu_star.datasets import mnist  # noqa
-from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger, NeptuneLogger  # noqa
+from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger, NeptuneLogger, WandBLogger  # noqa
+from tpu_star.utils import seed_everything  # noqa
 
 
 def build_datasets():
@@ -57,6 +59,8 @@ class MNISTExperiment(TorchGPUExperiment):
 
 
 def test_run_experiment():
+    seed = 42
+    seed_everything(seed)
     lr = 0.0001 * 8
     batch_size = 32
     num_epochs = 5
@@ -83,12 +87,18 @@ def test_run_experiment():
         pct_start=pct_start,
         epochs=num_epochs,
     )
-    run = neptune.init(project='aleksey.shonenkov/tpu-star-mnist-2')
     loggers = [
         STDLogger(),
         FolderLogger(base_dir='/tmp/saved_models', main_script_abs_path=os.path.abspath(__file__)),
         ProgressBarLogger(),
-        NeptuneLogger(run, main_script_abs_path=os.path.abspath(__file__)),
+        NeptuneLogger(
+            run=neptune.init(project='aleksey.shonenkov/tpu-star-mnist-2'),
+            main_script_abs_path=os.path.abspath(__file__),
+        ),
+        WandBLogger(
+            run=wandb.init(entity='shonenkov', project='tpu-star-mnist-2'),
+            main_script_abs_path=os.path.abspath(__file__),
+        )
     ]
     experiment = MNISTExperiment(
         model=model,
@@ -99,7 +109,7 @@ def test_run_experiment():
         h_params={'tags': ['tests']},
         loggers=loggers,
         experiment_name=experiment_name,
-        seed=42,
+        seed=seed,
         low_memory=True,
     )
     experiment.fit(train_loader, valid_loader, num_epochs)

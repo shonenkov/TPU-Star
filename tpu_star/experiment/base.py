@@ -1,11 +1,7 @@
 # -*- coding: utf-8 -*-
-import os
-import random
-
-import numpy as np
-import torch
 
 from ..loggers import STDLogger, FolderLogger
+from ..utils import seed_everything
 
 
 class BaseExperiment:
@@ -22,7 +18,7 @@ class BaseExperiment:
         # #
         self.rank = rank
         self.seed = seed
-        self.seed_everything(self.seed)
+        seed_everything(self.seed)
         self.experiment_name = experiment_name or 'debug'
 
         self.h_params = h_params or {}
@@ -33,15 +29,6 @@ class BaseExperiment:
         self._create_experiment()
         for key, value in kwargs.items():
             setattr(self, key, value)
-
-    def seed_everything(self, seed):
-        random.seed(seed)
-        os.environ['PYTHONHASHSEED'] = str(seed)
-        np.random.seed(seed)
-        torch.manual_seed(seed)
-        torch.cuda.manual_seed(seed)
-        torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = True
 
     def _create_experiment(self):
         if self.rank == 0:
@@ -74,4 +61,6 @@ class BaseExperiment:
                 logger.log_on_step(stage, step, epoch, global_step, *args, **kwargs)
 
     def destroy(self):
-        pass
+        if self.rank == 0:
+            for logger in self.loggers:
+                logger.destroy()

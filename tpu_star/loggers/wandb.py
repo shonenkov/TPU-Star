@@ -2,23 +2,25 @@
 from .base import BaseLogger
 
 
-class NeptuneLogger(BaseLogger):
-    """ NEPTUNE_API_TOKEN """
+class WandBLogger(BaseLogger):
+    """ WANDB_API_KEY """
 
     def __init__(self, run, main_script_abs_path=None):
         self.run = run
         self.main_script_abs_path = main_script_abs_path
 
     def create_experiment(self, experiment_name, h_params):
-        self.run['model/experiment_name'] = experiment_name
-        self.run['model/parameters'] = h_params
+        self.run.name = experiment_name
+        self.run.config.update(h_params)
         if 'tags' in h_params:
-            self.run['sys/tags'].add(h_params['tags'])
+            for tag in h_params['tags']:
+                self.run.tags += (tag,)
+
         if self.main_script_abs_path is not None:
             self.log_artifact(self.main_script_abs_path, 'main_script')
 
     def destroy(self):
-        self.run.stop()
+        self.run.finish()
 
     def log_on_step(self, stage, step, epoch, global_step, *args, **kwargs):
         pass
@@ -31,11 +33,13 @@ class NeptuneLogger(BaseLogger):
 
     def log_on_start_epoch(self, stage, lr):
         if stage == 'train':
-            self.run['train/epoch/lr'].log(lr)
+            self.run.log({'lr': lr})
 
     def log_on_end_epoch(self, stage, *args, **kwargs):
+        log_metrics = {}
         for key, value in kwargs.items():
-            self.run[f'{stage}/epoch/{key}'].log(value)
+            log_metrics[f'{stage}_{key}'] = value
+        self.run.log(log_metrics)
 
     def log_artifact(self, abs_path, name):
-        self.run[name].track_files(abs_path)
+        self.run.save(abs_path)

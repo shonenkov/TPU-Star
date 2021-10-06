@@ -278,6 +278,8 @@ class TorchGPUExperiment(BaseExperiment):
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     def destroy(self):
+        super().destroy()
+
         def _optimizer_to(optimizer, device):
             for param in optimizer.state.values():
                 # Not sure there are any global tensors in the state dict
@@ -307,9 +309,6 @@ class TorchGPUExperiment(BaseExperiment):
         del self.scheduler
         gc.collect()
         torch.cuda.empty_cache()
-
-        # if self.rank == 0 and self.neptune:
-        #     self.neptune.stop()
 
     def optimizer_step(self):
         self.optimizer.step()
