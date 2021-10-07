@@ -29,11 +29,11 @@ class NeptuneLogger(BaseLogger):
     def log_on_end_training(self):
         pass
 
-    def log_on_start_epoch(self, stage, lr):
+    def log_on_start_epoch(self, stage, lr, epoch, global_step):
         if stage == 'train':
             self.run['train/epoch/lr'].log(lr)
 
-    def log_on_end_epoch(self, stage, *args, **kwargs):
+    def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         for key, value in kwargs.items():
             self.run[f'{stage}/epoch/{key}'].log(value)
 

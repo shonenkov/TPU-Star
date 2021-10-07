@@ -9,7 +9,7 @@ from .utils import prepare_text_msg
 
 class FolderLogger(BaseLogger):
 
-    def __init__(self, base_dir='./saved_models', main_script_abs_path=None, verbose_ndigits=5, verbose_step=10**5):
+    def __init__(self, base_dir='./saved_models', main_script_abs_path=None, verbose_ndigits=5, verbose_step=100):
         self.verbose_ndigits = verbose_ndigits
         self.verbose_step = verbose_step
         self.base_dir = base_dir
@@ -27,21 +27,23 @@ class FolderLogger(BaseLogger):
             os.makedirs(self.experiment_dir)
         if self.main_script_abs_path is not None:
             self.log_artifact(self.main_script_abs_path)
-        self.log_path = f'{self.experiment_dir}/log.txt'
+        self.log_epoch_path = os.path.join(self.experiment_dir, 'log_epoch.txt')
+        self.log_step_path = os.path.join(self.experiment_dir, 'log_step.txt')
 
     def destroy(self, *args, **kwargs):
         pass
 
     def log_on_step(self, stage, step, epoch, global_step, *args, **kwargs):
-        if step and step % self.verbose_step == 0:
-            if stage == 'train':
-                msg = f'Train step {step}/{self.steps_per_epoch}'
-            elif stage == 'valid':
-                msg = f'Valid step {step}/{self.steps_per_epoch}'
-            else:
-                msg = f'{step}/{self.steps_per_epoch}'
+        msg = None
+        if stage == 'train':
+            if global_step and global_step % self.verbose_step == 0:
+                msg = f'Train step {global_step}'
+        elif stage == 'valid':
+            if step and step % self.verbose_step == 0:
+                msg = f'Valid step {step}'
+        if msg is not None:
             msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
-            with open(self.log_path, 'a+') as logger:
+            with open(self.log_step_path, 'a+') as logger:
                 logger.write(f'{msg}\n')
 
     def log_on_start_training(self, n_epochs, steps_per_epoch, *args, **kwargs):
@@ -51,13 +53,13 @@ class FolderLogger(BaseLogger):
     def log_on_end_training(self, *args, **kwargs):
         pass
 
-    def log_on_start_epoch(self, stage, lr, *args, **kwargs):
+    def log_on_start_epoch(self, stage, lr, epoch, global_step, *args, **kwargs):
         if stage == 'train':
             msg = f'\n{datetime.utcnow().isoformat()}\nlr: {lr:{self.verbose_ndigits}}'
-            with open(self.log_path, 'a+') as logger:
+            with open(self.log_epoch_path, 'a+') as logger:
                 logger.write(f'{msg}\n')
 
-    def log_on_end_epoch(self, stage, *args, **kwargs):
+    def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         if stage == 'train':
             msg = 'Train'
         elif stage == 'valid':
@@ -65,8 +67,10 @@ class FolderLogger(BaseLogger):
         else:
             msg = ''
         msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
-        with open(self.log_path, 'a+') as logger:
+        with open(self.log_epoch_path, 'a+') as logger:
             logger.write(f'{msg}\n')
+        with open(self.log_step_path, 'a+') as logger:
+            logger.write('\n')
 
     def log_artifact(self, abs_path, name=None):
         name = os.path.basename(abs_path)

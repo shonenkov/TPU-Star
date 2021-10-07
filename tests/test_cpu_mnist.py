@@ -17,7 +17,8 @@ sys.path.insert(0, '.')
 
 from tpu_star.experiment import TorchGPUExperiment  # noqa
 from tpu_star.datasets import mnist  # noqa
-from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger, NeptuneLogger, WandBLogger  # noqa
+from tpu_star.loggers import STDLogger, FolderLogger, ProgressBarLogger, NeptuneLogger, WandBLogger, \
+    TensorBoardLogger  # noqa
 from tpu_star.utils import seed_everything  # noqa
 
 
@@ -59,14 +60,20 @@ class MNISTExperiment(TorchGPUExperiment):
 
 
 def test_run_experiment():
-    seed = 42
-    seed_everything(seed)
-    lr = 0.0001 * 8
-    batch_size = 32
-    num_epochs = 5
-    max_lr = 0.001 * 8
-    pct_start = 0.1
-    experiment_name = 'test-cpu-mnist'
+    base_dir = '/tmp/saved_models'
+    h_params = {
+        'experiment_name': 'test-cpu-mnist',
+        'seed': 42,
+        'lr': 0.0001 * 8,
+        'bs': 32,
+        'num_epochs': 5,
+        'max_lr': 0.001 * 8,
+        'pct_start': 0.1,
+        'verbose_step': 1,
+        'tags': ['test'],
+        'low_memory': True,
+    }
+    seed_everything(h_params['seed'])
     device = torch.device('cpu')
 
     mx = create_model()
@@ -75,30 +82,25 @@ def test_run_experiment():
     model = mx.to(device)
 
     criterion = torch.nn.CrossEntropyLoss().to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=h_params['lr'])
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True, drop_last=True)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=batch_size, shuffle=False, drop_last=False)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=h_params['bs'], shuffle=True, drop_last=True)
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, batch_size=h_params['bs'], shuffle=False, drop_last=False)
 
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
-        optimizer,
-        max_lr=max_lr,
-        steps_per_epoch=len(train_loader),
-        pct_start=pct_start,
-        epochs=num_epochs,
+        optimizer, max_lr=h_params['max_lr'], steps_per_epoch=len(train_loader), pct_start=h_params['pct_start'],
+        epochs=h_params['num_epochs']
     )
     loggers = [
         STDLogger(),
-        FolderLogger(base_dir='/tmp/saved_models', main_script_abs_path=os.path.abspath(__file__)),
         ProgressBarLogger(),
-        NeptuneLogger(
-            run=neptune.init(project='aleksey.shonenkov/tpu-star-mnist-2'),
-            main_script_abs_path=os.path.abspath(__file__),
-        ),
-        WandBLogger(
-            run=wandb.init(entity='shonenkov', project='tpu-star-mnist-2'),
-            main_script_abs_path=os.path.abspath(__file__),
-        )
+        FolderLogger(base_dir=base_dir, main_script_abs_path=os.path.abspath(__file__),
+                     verbose_step=h_params['verbose_step']),
+        NeptuneLogger(run=neptune.init(project='aleksey.shonenkov/tpu-star-mnist-2'),
+                      main_script_abs_path=os.path.abspath(__file__)),
+        WandBLogger(run=wandb.init(entity='shonenkov', project='tpu-star-mnist-2'),
+                    main_script_abs_path=os.path.abspath(__file__)),
+        TensorBoardLogger(main_script_abs_path=os.path.abspath(__file__),),
     ]
     experiment = MNISTExperiment(
         model=model,
@@ -106,16 +108,14 @@ def test_run_experiment():
         criterion=criterion,
         scheduler=scheduler,
         device=device,
-        h_params={'tags': ['tests']},
+        h_params=h_params,
         loggers=loggers,
-        experiment_name=experiment_name,
-        seed=seed,
-        low_memory=True,
+        experiment_name=h_params['experiment_name'],
+        seed=h_params['seed'],
+        low_memory=h_params['low_memory'],
     )
-    experiment.fit(train_loader, valid_loader, num_epochs)
+    experiment.fit(train_loader, valid_loader, h_params['num_epochs'])
     experiment.destroy()
-
-    shutil.rmtree('/tmp/saved_models')
 
 
 @pytest.mark.skip()

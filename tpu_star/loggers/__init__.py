@@ -5,6 +5,7 @@ from .folder import FolderLogger
 from .progress_bar import ProgressBarLogger
 from .neptune import NeptuneLogger
 from .wandb import WandBLogger
+from .tensorboard import TensorBoardLogger
 
-
-__all__ = ['BaseLogger', 'STDLogger', 'FolderLogger', 'ProgressBarLogger', 'NeptuneLogger', 'WandBLogger']
+__all__ = ['BaseLogger', 'STDLogger', 'FolderLogger', 'ProgressBarLogger', 'NeptuneLogger', 'WandBLogger',
+           'TensorBoardLogger']

@@ -31,11 +31,11 @@ class WandBLogger(BaseLogger):
     def log_on_end_training(self):
         pass
 
-    def log_on_start_epoch(self, stage, lr):
+    def log_on_start_epoch(self, stage, lr, epoch, global_step):
         if stage == 'train':
             self.run.log({'lr': lr})
 
-    def log_on_end_epoch(self, stage, *args, **kwargs):
+    def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         log_metrics = {}
         for key, value in kwargs.items():
             log_metrics[f'{stage}_{key}'] = value

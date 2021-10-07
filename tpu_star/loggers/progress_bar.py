@@ -29,10 +29,10 @@ class ProgressBarLogger(BaseLogger):
     def log_on_end_training(self, *args, **kwargs):
         pass
 
-    def log_on_start_epoch(self, stage, lr, *args, **kwargs):
+    def log_on_start_epoch(self, stage, lr, epoch, global_step, *args, **kwargs):
         pass
 
-    def log_on_end_epoch(self, stage, *args, **kwargs):
+    def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         if stage == 'train':
             self.train_progress_bar.update(1)
         if stage == 'valid':

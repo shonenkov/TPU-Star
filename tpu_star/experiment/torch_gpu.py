@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import gc
 import time
 from datetime import datetime
@@ -127,46 +128,48 @@ class TorchGPUExperiment(BaseExperiment):
             # #
             stage = 'train'
             lr = self.optimizer.param_groups[0]['lr']
-            self._log_on_start_epoch(stage=stage, lr=lr)
+            self._log_on_start_epoch(stage=stage, lr=lr, epoch=self.epoch, global_step=self.global_step)
             self.system_metrics.update(lr=lr, epoch=self.epoch)
             epoch_time = time.time()
             self.train_one_epoch(self._rebuild_loader(train_loader))
             metrics = self._get_current_metrics(stage)
             epoch_time = time.time() - epoch_time
             self.system_metrics.update(train_epoch_time=epoch_time)
-            self._log_on_end_epoch(stage=stage, epoch=self.epoch, time=epoch_time, **metrics)
+            self._log_on_end_epoch(stage=stage, epoch=self.epoch,
+                                   time=epoch_time, global_step=self.global_step, **metrics)
             # #
             # #
             self._custom_action_after_train_one_epoch()
             # #
             # #
             stage = 'valid'
-            self._log_on_start_epoch(stage=stage, lr=self.optimizer.param_groups[0]['lr'])
+            self._log_on_start_epoch(stage=stage, lr=self.optimizer.param_groups[0]['lr'], epoch=self.epoch,
+                                     global_step=self.global_step)
             epoch_time = time.time()
             self.validation(self._rebuild_loader(valid_loader))
             metrics = self._get_current_metrics(stage)
             epoch_time = time.time() - epoch_time
             self.system_metrics.update(valid_epoch_time=epoch_time, valid_iterations=len(valid_loader))
-            self._log_on_end_epoch(stage=stage, epoch=self.epoch, time=epoch_time, **metrics)
+            self._log_on_end_epoch(stage=stage, epoch=self.epoch, global_step=self.global_step,
+                                   time=epoch_time, **metrics)
             # #
             # #
             self._custom_action_after_valid_one_epoch()
             self._low_memory()
             # #
-
-            # if self.last_saving:
-            #     self.save(f'{self.experiment_dir}/last.pt')
-            # last_saved_path = None
-            # for key, mode in self.best_saving.items():
-            #     if self.epoch == self.metrics.get_best_epoch(key, mode)['epoch']:
-            #         if self.last_saving:
-            #             os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
-            #         elif last_saved_path:
-            #             os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
-            #         else:
-            #             last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
-            #             self.save(last_saved_path)
-
+            if self.experiment_dir:
+                if self.last_saving:
+                    self.save(f'{self.experiment_dir}/last.pt')
+                last_saved_path = None
+                for key, mode in self.best_saving.items():
+                    if self.epoch == self.metrics.get_best_epoch(key, mode)['epoch']:
+                        if self.last_saving:
+                            os.system(f'cp "{self.experiment_dir}/last.pt" "{self.experiment_dir}/best_{key}.pt"')
+                        elif last_saved_path:
+                            os.system(f'cp "{last_saved_path}" "{self.experiment_dir}/best_{key}.pt"')
+                        else:
+                            last_saved_path = f'{self.experiment_dir}/best_{key}.pt'
+                            self.save(last_saved_path)
             # #
 
         self._log_on_end_training()
@@ -278,7 +281,7 @@ class TorchGPUExperiment(BaseExperiment):
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
     def destroy(self):
-        super().destroy()
+        self._log_destroy()
 
         def _optimizer_to(optimizer, device):
             for param in optimizer.state.values():

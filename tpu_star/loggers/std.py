@@ -35,11 +35,11 @@ class STDLogger(BaseLogger):
     def log_on_end_training(self, *args, **kwargs):
         pass
 
-    def log_on_start_epoch(self, stage, lr, *args, **kwargs):
+    def log_on_start_epoch(self, stage, lr, epoch, global_step, *args, **kwargs):
         if stage == 'train':
             print(f'\n{datetime.utcnow().isoformat()}\nlr: {lr:{self.verbose_ndigits}}')
 
-    def log_on_end_epoch(self, stage, *args, **kwargs):
+    def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         if stage == 'train':
             msg = 'Train'
         elif stage == 'valid':

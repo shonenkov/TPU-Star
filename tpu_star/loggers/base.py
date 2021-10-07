@@ -16,10 +16,10 @@ class BaseLogger:
     def log_on_end_training(self):
         raise NotImplementedError
 
-    def log_on_start_epoch(self, stage, lr):
+    def log_on_start_epoch(self, stage, epoch, global_step, lr):
         raise NotImplementedError
 
-    def log_on_end_epoch(self, stage, *args, **kwargs):
+    def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         raise NotImplementedError
 
     def log_artifact(self, abs_path, name):
