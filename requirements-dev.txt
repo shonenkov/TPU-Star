@@ -1,9 +1,12 @@
 -r requirements.txt
-pytest==5.4.3
-pytest-cov==2.10.1
-pre-commit==1.18.3
+pytest~=5.4.3
+pytest-cov~=2.10.1
+pre-commit~=1.18.3
 pandas>=0.22
 gdown>=3.6.0
 scikit-learn<=1.0.0
 albumentations<=1.0.0
 torchvision<=1.0.0
+neptune-client~=0.12.0
+wandb~=0.12.4
+tensorboard~=2.6.0

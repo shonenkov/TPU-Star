@@ -47,7 +47,7 @@ setup(
     author='Alex Shonenkov',
     author_email='shonenkov@phystech.edu',
     description='PyTorch XLA Toolkit for quickly and easy prototyping on TPU (8 cores)',
-    packages=['tpu_star', 'tpu_star/datasets', 'tpu_star/experiment'],
+    packages=['tpu_star', 'tpu_star/datasets', 'tpu_star/experiment', 'tpu_star/loggers'],
     install_requires=get_requirements(),
     dependency_links=get_links(),
     long_description=read('README.md'),

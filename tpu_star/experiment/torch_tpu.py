@@ -113,14 +113,10 @@ class TorchTPUExperiment(TorchGPUExperiment):
     def resume(cls, *args, **kwargs):
         raise
 
-    def destroy(self):
-        if self.rank == 0 and self.neptune:
-            self.neptune.stop()
-
     def optimizer_step(self):
         self.xm.optimizer_step(self.optimizer)
 
-    def _seed_everything(self, seed):
+    def seed_everything(self, seed):
         random.seed(seed)
         os.environ['PYTHONHASHSEED'] = str(seed)
         np.random.seed(seed)
