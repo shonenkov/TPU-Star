@@ -8,6 +8,7 @@ from .utils import prepare_text_msg
 class STDLogger(BaseLogger):
 
     def __init__(self, verbose_ndigits=5, verbose_step=10**5):
+        super().__init__()
         self.verbose_ndigits = verbose_ndigits
         self.verbose_step = verbose_step
 
@@ -51,3 +52,13 @@ class STDLogger(BaseLogger):
 
     def log_artifact(self, abs_path, name):
         pass
+
+    def state_dict(self):
+        return {'logger_name': self.name}
+
+    def _save_history(self, method, *args, **kwargs):
+        self.history.append([method, args, kwargs])
+
+    def resume(self, logger_state_dict):
+        for method, args, kwargs in logger_state_dict['history']:
+            getattr(self, method)(*args, **kwargs)

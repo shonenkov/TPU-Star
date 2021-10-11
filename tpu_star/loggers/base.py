@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 class BaseLogger:
 
+    def __init__(self):
+        self.history = []
+
     def create_experiment(self, experiment_name, h_params):
         raise NotImplementedError
 
@@ -24,3 +27,20 @@ class BaseLogger:
 
     def log_artifact(self, abs_path, name):
         raise NotImplementedError
+
+    @property
+    def name(self):
+        return self.__class__.__name__
+
+    def state_dict(self):
+        return {
+            'logger_name': self.name,
+            'history': self.history
+        }
+
+    def _save_history(self, method, *args, **kwargs):
+        self.history.append([method, args, kwargs])
+
+    def resume(self, logger_state_dict):
+        for method, args, kwargs in logger_state_dict['history']:
+            getattr(self, method)(*args, **kwargs)

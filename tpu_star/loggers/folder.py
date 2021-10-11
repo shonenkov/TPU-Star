@@ -10,6 +10,7 @@ from .utils import prepare_text_msg
 class FolderLogger(BaseLogger):
 
     def __init__(self, base_dir='./saved_models', main_script_abs_path=None, verbose_ndigits=5, verbose_step=100):
+        super().__init__()
         self.verbose_ndigits = verbose_ndigits
         self.verbose_step = verbose_step
         self.base_dir = base_dir
@@ -45,10 +46,12 @@ class FolderLogger(BaseLogger):
             msg = prepare_text_msg(msg, self.verbose_ndigits,  *args, **kwargs)
             with open(self.log_step_path, 'a+') as logger:
                 logger.write(f'{msg}\n')
+            self._save_history('log_on_step', stage, step, epoch, global_step, *args, **kwargs)
 
     def log_on_start_training(self, n_epochs, steps_per_epoch, *args, **kwargs):
         self.n_epochs = n_epochs
         self.steps_per_epoch = steps_per_epoch
+        self._save_history('log_on_start_training', n_epochs, steps_per_epoch, *args, **kwargs)
 
     def log_on_end_training(self, *args, **kwargs):
         pass
@@ -58,6 +61,7 @@ class FolderLogger(BaseLogger):
             msg = f'\n{datetime.utcnow().isoformat()}\nlr: {lr:{self.verbose_ndigits}}'
             with open(self.log_epoch_path, 'a+') as logger:
                 logger.write(f'{msg}\n')
+            self._save_history('log_on_start_epoch', stage, lr, epoch, global_step, *args, **kwargs)
 
     def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         if stage == 'train':
@@ -71,6 +75,7 @@ class FolderLogger(BaseLogger):
             logger.write(f'{msg}\n')
         with open(self.log_step_path, 'a+') as logger:
             logger.write('\n')
+        self._save_history('log_on_end_epoch', stage, epoch, global_step, *args, **kwargs)
 
     def log_artifact(self, abs_path, name=None):
         name = os.path.basename(abs_path)

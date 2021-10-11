@@ -4,10 +4,13 @@ from glob import glob
 
 from torch.utils.tensorboard import SummaryWriter
 
+from .base import BaseLogger
 
-class TensorBoardLogger:
+
+class TensorBoardLogger(BaseLogger):
 
     def __init__(self, log_dir='./tb_logs', main_script_abs_path=None, verbose_step=10, max_queue=50):
+        super().__init__()
         self.log_dir = log_dir
         self.verbose_step = verbose_step
         self.max_queue = max_queue

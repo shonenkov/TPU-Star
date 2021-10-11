@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import os
 import gc
+import random
 import time
 from datetime import datetime
 
@@ -186,14 +187,16 @@ class TorchGPUExperiment(BaseExperiment):
         train_loader,
         valid_loader,
         n_epochs,
-        neptune=None,
-        seed=None,
+        loggers=None,
+        seed=42,
         **kwargs,
     ):
         checkpoint = torch.load(checkpoint_path)
         experiment_state_dict = checkpoint['experiment_state_dict']
-        # neptune_state_dict = checkpoint['neptune_state_dict']
-
+        h_params = experiment_state_dict['h_params']
+        if checkpoint['experiment_state_dict']['seed'] == seed:
+            seed = random.randint(1, 9999)
+            print(f'Warning! you shoud change seed to correct resume experiment. New seed is {seed}')
         experiment_name = 'R+' + experiment_state_dict['experiment_name']
 
         experiment = cls(
@@ -203,17 +206,10 @@ class TorchGPUExperiment(BaseExperiment):
             criterion=criterion,
             device=device,
             rank=experiment_state_dict['rank'],
-            seed=experiment_state_dict['seed'] if seed is None else seed,
-            verbose=experiment_state_dict['verbose'],
-            verbose_end=experiment_state_dict['verbose_end'],
-            verbose_ndigits=experiment_state_dict['verbose_ndigits'],
-            verbose_step=experiment_state_dict['verbose_step'],
-            base_dir=experiment_state_dict['base_dir'],
-            jupyters_path=experiment_state_dict['jupyters_path'],
-            notebook_name=experiment_state_dict['notebook_name'],
+            seed=seed,
+            loggers=loggers,
+            h_params=h_params,
             experiment_name=experiment_name,
-            # neptune=None,
-            # neptune_params=neptune_state_dict['params'],
             best_saving=experiment_state_dict['best_saving'],
             last_saving=experiment_state_dict['last_saving'],
             low_memory=experiment_state_dict.get('low_memory', True),
@@ -227,12 +223,35 @@ class TorchGPUExperiment(BaseExperiment):
         experiment.metrics.load_state_dict(checkpoint['metrics_state_dict'])
         experiment.system_metrics.load_state_dict(checkpoint['system_metrics_state_dict'])
 
-        experiment._init_neptune(neptune)
+        experiment._log_on_start_training(n_epochs=n_epochs, steps_per_epoch=len(train_loader))
 
-        experiment.verbose = False
-        for e in range(experiment.epoch + 1):
-            system_metrics = experiment.system_metrics.metrics[e].avg
+        global_step = 0
+        for epoch in range(experiment.epoch + 1):
+            system_metrics = experiment.system_metrics.metrics[epoch].avg
+            lr = system_metrics['lr']
+            stage = 'train'
+
+            experiment._log_on_start_epoch(stage=stage, lr=lr, epoch=epoch, global_step=global_step)
+            metrics = experiment.metrics.train_metrics[epoch].avg
+
+            experiment._log_on_start_epoch(stage=stage, lr=lr, epoch=self.epoch, global_step=self.global_step)
+
             experiment._log_on_step(f'\n{datetime.utcnow().isoformat()}\nlr: {system_metrics["lr"]}')
+
+            #
+            # stage = 'train'
+            # lr = self.optimizer.param_groups[0]['lr']
+            # self._log_on_start_epoch(stage=stage, lr=lr, epoch=self.epoch, global_step=self.global_step)
+            # self.system_metrics.update(lr=lr, epoch=self.epoch)
+            # epoch_time = time.time()
+            # self.train_one_epoch(self._rebuild_loader(train_loader))
+            # metrics = self._get_current_metrics(stage)
+            # epoch_time = time.time() - epoch_time
+            # self.system_metrics.update(train_epoch_time=epoch_time)
+            # self._log_on_end_epoch(stage=stage, epoch=self.epoch,
+            #                        time=epoch_time, global_step=self.global_step, **metrics)
+            #
+            #
             # #
             metrics = experiment.metrics.train_metrics[e].avg
             experiment._log_on_step(f'Train epoch {e}, time: {system_metrics["train_epoch_time"]}s', **metrics)
@@ -269,6 +288,7 @@ class TorchGPUExperiment(BaseExperiment):
             'scheduler_state_dict': self.scheduler.state_dict(),
             'metrics_state_dict': self.metrics.state_dict(),
             'system_metrics_state_dict': self.system_metrics.state_dict(),
+            'loggers_state_dict': [logger.state_dict() for logger in self.loggers]
         }, path)
 
     def load(self, path):

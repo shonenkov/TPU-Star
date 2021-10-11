@@ -60,7 +60,7 @@ class MNISTExperiment(TorchGPUExperiment):
 
 
 def test_run_experiment():
-    base_dir = '/tmp/saved_models'
+    base_dir = './saved_models'
     h_params = {
         'experiment_name': 'test-cpu-mnist',
         'seed': 42,

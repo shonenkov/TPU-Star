@@ -6,6 +6,7 @@ class WandBLogger(BaseLogger):
     """ WANDB_API_KEY """
 
     def __init__(self, run, main_script_abs_path=None):
+        super().__init__()
         self.run = run
         self.main_script_abs_path = main_script_abs_path
 

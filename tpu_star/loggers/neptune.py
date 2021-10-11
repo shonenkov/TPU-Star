@@ -6,6 +6,7 @@ class NeptuneLogger(BaseLogger):
     """ NEPTUNE_API_TOKEN """
 
     def __init__(self, run, main_script_abs_path=None):
+        super().__init__()
         self.run = run
         self.main_script_abs_path = main_script_abs_path
 
@@ -32,10 +33,12 @@ class NeptuneLogger(BaseLogger):
     def log_on_start_epoch(self, stage, lr, epoch, global_step):
         if stage == 'train':
             self.run['train/epoch/lr'].log(lr)
+            self._save_history('log_on_start_epoch', stage, lr, epoch, global_step)
 
     def log_on_end_epoch(self, stage, epoch, global_step, *args, **kwargs):
         for key, value in kwargs.items():
             self.run[f'{stage}/epoch/{key}'].log(value)
+            self._save_history('log_on_end_epoch', stage, epoch, global_step, *args, **kwargs)
 
     def log_artifact(self, abs_path, name):
         self.run[name].track_files(abs_path)
